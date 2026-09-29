@@ -44,10 +44,10 @@ Yeni klasör `web/src/game/render/`:
 
 | Birim | Görev | Arayüz |
 |---|---|---|
-| `render/profile.ts` | Kalite → ayar tablosu (piksel oranı, gölge haritası boyutu, açık efektler, grading değerleri). Saf veri. | `renderProfile(quality: Quality, webgl2: boolean): RenderProfile` |
-| `render/environment.ts` | HDRI'yi yükler (`RGBELoader` → `PMREMGenerator`; r179'da `HDRLoader` henüz yok) ve `scene.environment`'a koyar. Yüklenene kadar ve hata durumunda `RoomEnvironment` kalır. | `loadEnvironment(renderer, scene, url): { ready: Promise<void>; dispose(): void }` |
+| `render/profile.ts` | Kalite → ayar tablosu (piksel oranı, gölge haritası boyutu, açık efektler, grading değerleri). Saf veri. | `renderProfile(quality: Quality): RenderProfile` |
+| `render/environment.ts` | HDRI'yi yükler (`RGBELoader` → `PMREMGenerator`; r179'da `HDRLoader` henüz yok) ve `scene.environment`'a koyar. Yüklenene kadar ve hata durumunda `RoomEnvironment` kalır. | `loadEnvironment(scene, url, baker, look?, load?): { ready: Promise<void>; dispose(): void }` — PMREM işi `pmremBaker(renderer)` arkasında, böylece WebGL'siz test edilebilir |
 | `render/postfx.ts` | `EffectComposer`'ı kurar ve sahiplenir. | `createPostFx(renderer, scene, camera, profile): PostFx` — `render(dt)`, `setSize(w, h)`, `enabled`, `dispose()` |
-| `world/arena.ts` → `createLights` | WTT düzenine göre yeniden kurulur. | İmza aynı: `createLights(quality)` |
+| `world/arena.ts` → `createLights` | WTT düzenine göre yeniden kurulur. | `createLights(profile: RenderProfile)` (gölge haritası boyutu profilden) |
 
 `GameRenderer` değişiklikleri:
 
@@ -58,7 +58,7 @@ Yeni klasör `web/src/game/render/`:
   `antialias: false` (AA composer'da).
 - Renderer ayarları (piksel oranı, gölge tipi) `renderProfile`'dan okunur.
 
-Asset yeri: `web/public/env/arena_1k.hdr` (~1.5 MB) ve kaynak + CC0 lisansını
+Asset yeri: `web/public/env/arena_1k.hdr` (Poly Haven `dancing_hall`, 1k, 1.7 MB) ve kaynak + CC0 lisansını
 yazan `web/public/env/README.md`. Faz 2'de Blender'dan render edilen kendi
 salon env map'i aynı klasöre gelir ve `loadEnvironment` URL'si değişir.
 
@@ -66,7 +66,7 @@ salon env map'i aynı klasöre gelir ve `loadEnvironment` URL'si değişir.
 
 | Işık | Ayar |
 |---|---|
-| `scene.environment` | Poly Haven iç mekân/arena HDRI'si, `environmentIntensity` ≈ 0.5, parlak bölge tepeye gelecek şekilde döndürülür. |
+| `scene.environment` | Poly Haven `dancing_hall` (karanlık tavan, nötr LED ızgaraları; `circus_arena` kırmızı zemin yansıması yüzünden elendi), `environmentIntensity` ≈ 0.5, parlak bölge tepeye gelecek şekilde döndürülür. |
 | Hemisphere | 0.55 → ≈ 0.12. |
 | Key (tek gölge atan) | Masanın neredeyse tam üstünde, hafif ofsetli directional. Soğuk beyaz `#f3f6ff`. Gölge haritası 2048 (`high`) / 1024 (`low`). Kısa, keskin top/raket gölgesi derinlik algısı için korunur. |
 | Kort yıkaması | 4 gölgesiz spot; kortta ışık havuzu, bariyerlere doğru sönümlenir. |
@@ -79,14 +79,15 @@ Tüm değerler başlangıç noktasıdır; görsel doğrulama sırasında ayarlan
 
 | | `high` | `low` |
 |---|---|---|
-| AA | Composer MSAA ×4 | FXAA (aynı `EffectPass` içinde) |
+| AA | Composer MSAA ×4 | FXAA (ayrı, son `EffectPass`) |
 | AO | N8AO, yarım çözünürlük | yok |
 | Bloom | Mipmap bloom, eşik ≈ 0.9, yoğunluk ≈ 0.7 | Aynı, daha az mip seviyesi |
 | Tone mapping | AgX | AgX |
 | Grading | Kontrast +, doygunluk + (AgX düzlüğünü telafi), vinyet ≈ 0.35 | Aynı |
 | Piksel oranı | ≤ 2 | ≤ 1.25 |
 
-AO dışındaki her şey tek bir `EffectPass`'te birleşir. Grading LUT dosyası
+Bloom, tone mapping ve grading tek bir `EffectPass`'te birleşir. FXAA komşu
+pikselleri örneklediği için bitmiş görüntü üzerinde ayrı bir geçişte çalışır. Grading LUT dosyası
 değil, parametredir.
 
 **Bilinen risk:** N8AO ile composer MSAA birlikte sorun çıkarırsa `high`,
@@ -97,7 +98,8 @@ SMAA + N8AO'ya düşer. Uygulamanın ilk adımında doğrulanır.
 - HDRI yüklenemezse: `console.warn`, `RoomEnvironment` kalır, oyun beklemez.
 - Yükleme sürerken `dispose()` çağrılırsa (kalite değişimi canvas'ı yeniden
   kurar) gelen sonuç atılır ve doku bırakılır.
-- WebGL2 yoksa `renderProfile` `low` zincirini döndürür.
+- WebGL2 dalı yok: three r163'ten beri `WebGLRenderer` yalnızca WebGL2 ile
+  çalışır, WebGL2'siz tarayıcıda renderer zaten kurulamaz (mevcut davranış).
 - Geliştirme yardımı: `rally.renderer.postfx.enabled = false` doğrudan
   renderer ile çizer (önce/sonra ve performans karşılaştırması için).
 
@@ -106,7 +108,7 @@ SMAA + N8AO'ya düşer. Uygulamanın ilk adımında doğrulanır.
 Birim testleri (vitest, `web/`):
 
 - `profile.test.ts`: `high`'da AO + MSAA var, `low`'da yok; piksel oranı
-  sınırları; gölge haritası boyutları; WebGL2 yoksa `low`.
+  sınırları; gölge haritası boyutları; iki katmanın aynı grading'i paylaşması.
 - `environment.test.ts`: sahte yükleyiciyle hata durumunda fallback'in
   kaldığı; dispose sonrası gelen sonucun atıldığı.
 - `postfx` jsdom'da çizilemez; tarayıcı önizlemesinde smoke kontrolü yapılır.
