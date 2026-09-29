@@ -1,8 +1,6 @@
 node_modules/
 web/dist/
-server/.gocache/
-server/.gomodcache/
-server/tt-server.exe
+server/dist/
 *.log
 *.tsbuildinfo
 tools/*.blend*

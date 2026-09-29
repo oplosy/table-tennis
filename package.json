@@ -1,14 +1,25 @@
 {
-  "name": "table-tennis-multiplayer",
+  "name": "rally-table-tennis",
   "private": true,
+  "type": "module",
   "workspaces": [
+    "packages/core",
+    "server",
     "web"
   ],
   "scripts": {
-    "dev:web": "npm --workspace web run dev",
-    "build:web": "npm --workspace web run build",
-    "test:web": "npm --workspace web run test",
-    "protocol:generate": "npm --workspace web run protocol:generate"
+    "dev": "node scripts/dev.mjs",
+    "build": "npm --workspace web run build && npm --workspace server run build",
+    "start": "npm --workspace server run start",
+    "test": "npm --workspace packages/core run test && npm --workspace server run test && npm --workspace web run test",
+    "typecheck": "npm --workspace packages/core run typecheck && npm --workspace server run typecheck && npm --workspace web run typecheck",
+    "bench": "npm --workspace packages/core run bench"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.0",
+    "tsx": "^4.20.0",
+    "typescript": "^5.9.2",
+    "vitest": "^3.2.4"
   },
   "allowScripts": {
     "esbuild@0.28.2": true
