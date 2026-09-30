@@ -27,7 +27,9 @@ export function createPostFx(renderer: THREE.WebGLRenderer, scene: THREE.Scene, 
     const ao = new N8AOPostPass(scene, camera)
     ao.setQualityMode('Medium')
     // World-space radius in metres: contact shadow under the table top, net and feet.
-    Object.assign(ao.configuration, { aoRadius: 0.5, distanceFalloff: 0.5, intensity: 2.5, halfRes: true })
+    // N8AO would switch itself to transparency-aware mode and draw the scene's
+    // transparent objects twice more; here that costs time and changes no pixel.
+    Object.assign(ao.configuration, { aoRadius: 0.5, distanceFalloff: 0.5, intensity: 2.5, halfRes: true, transparencyAware: false })
     composer.addPass(ao)
   }
 
