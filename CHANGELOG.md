@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- Broadcast-style lighting: HDRI image-based lighting, overhead key light,
+  court wash and rim lights.
+- Post-processing with pmndrs `postprocessing`: N8AO ambient occlusion
+  (High), bloom on the ceiling lamps, AgX tone mapping and light grading.
+
 ## 1.0.0 — full rewrite
 
 - Replaced the Go server with a Node.js/TypeScript server that runs the same

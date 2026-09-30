@@ -120,9 +120,19 @@ konumlanma hatası, güç aralığı ve isabetle ayrılır. Denge
 - **Tek sahne:** `stage.ts` uygulama boyunca tek bir WebGL renderer tutar;
   sayfalar yalnızca oturumu değiştirir. Ana menünün arkasında iki yapay zekânın
   demo maçı döner.
-- **Görsel dünya (`game/world/`):** salon, bariyerler, tribünler, ışık düzeni,
-  regülasyon masa ve file, prosedürel raketler, top izi ve temas gölgesi. Tüm
-  dokular çalışma anında canvas'a çizilir; ikili asset yoktur.
+- **Görsel dünya (`game/world/`):** salon, bariyerler, tribünler, WTT yayın
+  tarzı ışık düzeni (tepeden tek gölgeli key, kort yıkaması, rim), regülasyon
+  masa ve file, prosedürel raketler, top izi ve temas gölgesi. Dokular çalışma
+  anında canvas'a çizilir; tek ikili asset `public/env/` altındaki HDRI'dir.
+- **Render (`game/render/`):** `profile.ts` kalite katmanını (piksel oranı,
+  gölge, MSAA/FXAA, AO, bloom, grading) tanımlar. `environment.ts` HDRI'yi
+  PMREM'e çevirir; yüklenene kadar ve hata durumunda `RoomEnvironment` kullanır.
+  `postfx.ts` pmndrs `postprocessing` zinciridir: N8AO (yalnız High) → bloom +
+  AgX + grading tek geçişte → FXAA (yalnız Fast). Grading kendi küçük efektimizdir
+  (`grading.ts`): sonucu sıfırda sıkıştırır, çünkü negatif değerler bir sonraki
+  efektin renk uzayı dönüşümünde NaN'a döner. Tuvalin yerleşim boyutu yokken
+  çizim atlanır. Geliştirmede `rally.renderer.postfx.enabled = false` zinciri
+  kapatır.
 - **Kamera:** oyuncunun arkasında, raketi hafifçe takip eder; dikey ekranda
   geri çekilip görüş açısını genişletir.
 - **Kontrol (`MouseController`):** işaretçi masanın biraz üstündeki yatay
