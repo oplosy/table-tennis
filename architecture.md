@@ -131,7 +131,8 @@ konumlanma hatası, güç aralığı ve isabetle ayrılır. Denge
   AgX + grading tek geçişte → FXAA (yalnız Fast). Grading kendi küçük efektimizdir
   (`grading.ts`): sonucu sıfırda sıkıştırır, çünkü negatif değerler bir sonraki
   efektin renk uzayı dönüşümünde NaN'a döner. Tuvalin yerleşim boyutu yokken
-  çizim atlanır. Geliştirmede `rally.renderer.postfx.enabled = false` zinciri
+  çizim atlanır. `budget.ts` kare sürelerini izler; ortalama 18 ms'yi aşarsa
+  (tümleşik GPU'lar) AO oturum boyunca kapatılır. Geliştirmede `rally.renderer.postfx.enabled = false` zinciri
   kapatır.
 - **Kamera:** oyuncunun arkasında, raketi hafifçe takip eder; dikey ekranda
   geri çekilip görüş açısını genişletir.

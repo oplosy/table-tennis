@@ -151,3 +151,5 @@ kayıt düşülür.
 - Ölçüm (Intel UHD tümleşik GPU, 1280×720): `high` +12 ms/kare (N8AO ≈ 8.5 ms),
   `low` +2.1 ms/kare. Başarı ölçütü 2 (`low` ≲ 1 ms) **karşılanmadı**; `high`
   bu GPU'da 60 fps'in altında kalıyor. Ayrık GPU'da ölçülmedi.
+- Bunun için `high`, ortalama kare süresi 18 ms'yi aşarsa AO'yu oturum boyunca
+  kapatır (aynı GPU'da 23.1 → 15.5 ms/kare, ~3.5 sn sonra).

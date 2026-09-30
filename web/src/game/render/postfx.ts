@@ -9,6 +9,9 @@ import type { RenderProfile } from './profile'
 export interface PostFx {
   /** Development aid: `false` draws straight to the canvas with the same tone mapping. */
   enabled: boolean
+  /** Whether the ambient occlusion pass is running; always false on tiers without it. */
+  readonly ambientOcclusion: boolean
+  setAmbientOcclusion(enabled: boolean): void
   render(dt: number): void
   setSize(width: number, height: number): void
   dispose(): void
@@ -23,8 +26,9 @@ export function createPostFx(renderer: THREE.WebGLRenderer, scene: THREE.Scene, 
   const composer = new EffectComposer(renderer, { frameBufferType: THREE.HalfFloatType, multisampling: profile.msaaSamples })
   composer.addPass(new RenderPass(scene, camera))
 
+  let ao: N8AOPostPass | null = null
   if (profile.ao) {
-    const ao = new N8AOPostPass(scene, camera)
+    ao = new N8AOPostPass(scene, camera)
     ao.setQualityMode('Medium')
     // World-space radius in metres: contact shadow under the table top, net and feet.
     // N8AO would switch itself to transparency-aware mode and draw the scene's
@@ -53,6 +57,8 @@ export function createPostFx(renderer: THREE.WebGLRenderer, scene: THREE.Scene, 
       enabled = value
       renderer.toneMapping = value ? THREE.NoToneMapping : THREE.AgXToneMapping
     },
+    get ambientOcclusion() { return ao?.enabled ?? false },
+    setAmbientOcclusion(value) { if (ao) ao.enabled = value },
     render(dt) {
       if (enabled) composer.render(dt)
       else renderer.render(scene, camera)

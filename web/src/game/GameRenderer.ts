@@ -2,6 +2,7 @@ import * as THREE from 'three'
 // Bundled as a hashed asset so the server can cache it forever.
 import environmentUrl from '../assets/env/arena_1k.hdr?url'
 import { HALF_LENGTH, TABLE_HEIGHT, sideSign, type MatchEvent, type Side, type Vec3 } from '@rally/core'
+import { FrameBudget } from './render/budget'
 import { loadEnvironment, pmremBaker, type EnvironmentHandle } from './render/environment'
 import { createPostFx, type PostFx } from './render/postfx'
 import { renderProfile, type RenderProfile } from './render/profile'
@@ -47,6 +48,7 @@ export class GameRenderer {
   private eventListeners = new Set<(events: MatchEvent[]) => void>()
   private touchMode = false
   private drawable = false
+  private readonly budget = new FrameBudget()
 
   constructor(canvas: HTMLCanvasElement, quality: Quality) {
     this.canvas = canvas
@@ -156,7 +158,11 @@ export class GameRenderer {
     }
     this.net.update(dt)
     this.effects.update(dt)
-    if (this.drawable) this.postfx.render(dt)
+    if (this.drawable) {
+      // Integrated GPUs cannot afford ambient occlusion at 60 fps: drop it for the session.
+      if (this.postfx.ambientOcclusion && this.budget.sample(dt)) this.postfx.setAmbientOcclusion(false)
+      this.postfx.render(dt)
+    }
   }
 
   private present(events: MatchEvent[]) {
