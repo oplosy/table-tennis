@@ -66,18 +66,29 @@ export function createTable() {
   return table
 }
 
+/** Turns the table's own shadow on or off; off once the floor carries a baked one. */
+export function castTableShadows(table: THREE.Object3D, cast: boolean) {
+  table.traverse((object) => { if (object instanceof THREE.Mesh) object.castShadow = cast })
+}
+
 /**
  * Swaps the procedural table for the Blender model. It receives the ball's
- * and paddles' shadows but casts none: its own shadow on the floor is baked.
+ * and paddles' shadows; it casts its own only while the arena model, whose
+ * lightmap holds the table's floor shadow, is not there (`bakedFloorShadow`).
  */
-export function adoptTableModel(table: THREE.Group, net: NetView, model: THREE.Object3D) {
+export function adoptTableModel(table: THREE.Group, net: NetView, model: THREE.Object3D, bakedFloorShadow: boolean) {
+  const materials = new Set<THREE.Material>()
   for (const child of [...table.children]) {
     table.remove(child)
-    if (child instanceof THREE.Mesh) child.geometry.dispose()
+    child.traverse((object) => {
+      if (!(object instanceof THREE.Mesh)) return
+      object.geometry.dispose()
+      for (const material of Array.isArray(object.material) ? object.material : [object.material]) materials.add(material)
+    })
   }
-  model.traverse((object) => {
-    if (object instanceof THREE.Mesh) { object.receiveShadow = true; object.castShadow = false }
-  })
+  for (const material of materials) material.dispose()
+  model.traverse((object) => { if (object instanceof THREE.Mesh) object.receiveShadow = true })
+  castTableShadows(model, !bakedFloorShadow)
   table.add(model)
   net.hidePosts()
 }

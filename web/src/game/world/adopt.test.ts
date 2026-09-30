@@ -2,7 +2,7 @@ import * as THREE from 'three'
 import { describe, expect, it, vi } from 'vitest'
 import { adoptArenaModel } from './arena'
 import type { Scoreboard } from './scoreboard'
-import { adoptTableModel, type NetView } from './table'
+import { adoptTableModel, castTableShadows, type NetView } from './table'
 
 // The real painters need a 2D canvas, which jsdom does not provide.
 vi.mock('./textures', async () => {
@@ -82,6 +82,15 @@ describe('adoptArenaModel', () => {
     expect(basic(parts.screen).lightMap).toBeNull()
   })
 
+  it('keeps a surface two-sided when the model says so', () => {
+    const { model, parts } = arenaModel()
+    ;(parts.barrier.material as THREE.Material).side = THREE.DoubleSide
+    ;(parts.barrierCorner.material as THREE.Material).side = THREE.DoubleSide
+    adoptArenaModel(new THREE.Group(), model, new THREE.Texture(), board())
+    expect(basic(parts.barrier).side).toBe(THREE.DoubleSide)
+    expect(basic(parts.stands).side).toBe(THREE.FrontSide)
+  })
+
   it('shares one material between meshes that look the same', () => {
     const { model, parts } = arenaModel()
     adoptArenaModel(new THREE.Group(), model, new THREE.Texture(), board())
@@ -137,11 +146,44 @@ describe('adoptTableModel', () => {
     const top = mesh('table_top', 'table_surface')
     model.add(top)
     const net = { hidePosts: vi.fn() } as unknown as NetView
-    adoptTableModel(table, net, model)
+    adoptTableModel(table, net, model, true)
     expect(old.parent).toBeNull()
     expect(table.children).toEqual([model])
     expect(top.receiveShadow).toBe(true)
     expect(top.castShadow).toBe(false)
     expect(net.hidePosts).toHaveBeenCalledOnce()
+  })
+
+  it('casts its own shadow while the floor has no baked one', () => {
+    const model = new THREE.Group()
+    const top = mesh('table_top', 'table_surface')
+    model.add(top)
+    adoptTableModel(new THREE.Group(), { hidePosts: vi.fn() } as unknown as NetView, model, false)
+    expect(top.castShadow).toBe(true)
+  })
+
+  it('frees the procedural table it replaces', () => {
+    const table = new THREE.Group()
+    const old = mesh('procedural_top', 'old')
+    const freed = vi.fn()
+    old.material.addEventListener('dispose', freed)
+    table.add(old)
+    adoptTableModel(table, { hidePosts: vi.fn() } as unknown as NetView, new THREE.Group(), true)
+    expect(freed).toHaveBeenCalledOnce()
+  })
+})
+
+describe('castTableShadows', () => {
+  it('switches every part of the table, whichever table is showing', () => {
+    const table = new THREE.Group()
+    const leg = mesh('leg', 'metal')
+    const nested = new THREE.Group()
+    const top = mesh('table_top', 'table_surface')
+    nested.add(top)
+    table.add(leg, nested)
+    castTableShadows(table, false)
+    expect([leg.castShadow, top.castShadow]).toEqual([false, false])
+    castTableShadows(table, true)
+    expect([leg.castShadow, top.castShadow]).toEqual([true, true])
   })
 })

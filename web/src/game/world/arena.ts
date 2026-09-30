@@ -146,6 +146,7 @@ export function adoptArenaModel(arena: THREE.Group, model: THREE.Object3D, light
       }
     }
     material.name = source.name
+    material.side = source.side
     unlit.set(key, material)
     return material
   }

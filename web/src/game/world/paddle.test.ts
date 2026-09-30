@@ -63,6 +63,18 @@ describe('PaddleView.adopt', () => {
     expect(original.roughnessMap).toBeNull()
   })
 
+  it('frees the procedural blade and its painted rubber', () => {
+    const view = new PaddleView('away', COLORS)
+    const freed: string[] = []
+    view.root.traverse((object) => {
+      if (!(object instanceof THREE.Mesh)) return
+      const material = object.material as THREE.MeshStandardMaterial
+      material.roughnessMap?.addEventListener('dispose', () => freed.push('rubber'))
+    })
+    view.adopt(paddleModel())
+    expect(freed).toContain('rubber')
+  })
+
   it('casts shadows', () => {
     const { view } = adopted()
     expect((view.root.getObjectByName('part_wood') as THREE.Mesh).castShadow).toBe(true)

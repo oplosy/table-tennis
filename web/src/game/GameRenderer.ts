@@ -15,13 +15,12 @@ import { gltfSource, loadModels, type ModelsHandle } from './world/assets'
 import { BallView } from './world/ball'
 import { Effects } from './world/effects'
 import { PaddleView } from './world/paddle'
-import { Scoreboard, scoreView } from './world/scoreboard'
-import { adoptTableModel, createNet, createTable, type NetView } from './world/table'
+import { Scoreboard, boardFor } from './world/scoreboard'
+import { adoptTableModel, castTableShadows, createNet, createTable, type NetView } from './world/table'
 import type { GameSession } from './session/Session'
 import type { Quality } from '../state/settings'
 
 const HOME_COLORS = { forehand: '#d8262f', backhand: '#15171c', handle: '#b88a52', accent: '#ff6a3d' }
-const SCORE_EVENTS = new Set<MatchEvent['type']>(['point', 'game', 'match', 'next_serve'])
 const AWAY_COLORS = { forehand: '#d8262f', backhand: '#15171c', handle: '#3c4a63', accent: '#39c2ff' }
 
 /**
@@ -82,10 +81,16 @@ export class GameRenderer {
     this.paddles = { home: new PaddleView('home', HOME_COLORS), away: new PaddleView('away', AWAY_COLORS) }
     this.scene.add(this.net.group, this.paddles.home.root, this.paddles.away.root, this.ball.group, this.effects.group)
     // The procedural world above is what shows until the Blender models arrive.
+    let bakedFloor = false
     this.models = loadModels({ table: tableUrl, paddle: paddleUrl, arena: arenaUrl, lightmap: lightmapUrl }, gltfSource(), {
-      table: (model) => adoptTableModel(table, this.net, model),
+      table: (model) => adoptTableModel(table, this.net, model, bakedFloor),
       paddle: (model) => { this.paddles.home.adopt(model); this.paddles.away.adopt(model) },
-      arena: (model, lightmap) => adoptArenaModel(arena, model, lightmap, this.scoreboard),
+      arena: (model, lightmap) => {
+        adoptArenaModel(arena, model, lightmap, this.scoreboard)
+        // The table's floor shadow is now in the lightmap, whichever table is showing.
+        bakedFloor = true
+        castTableShadows(table, false)
+      },
     })
     this.postfx = createPostFx(this.renderer, this.scene, this.camera, this.profile)
 
@@ -102,20 +107,12 @@ export class GameRenderer {
 
   setSession(session: GameSession | null) {
     this.session = session
-    this.showScore()
     this.ball.resetTrail()
     this.ballOffset.set(0, 0, 0)
   }
 
   /** Player names for the hall's screens; `null` (menus, demo rally) shows the wordmark instead. */
-  setNames(names: Record<Side, string> | null) {
-    this.names = names
-    this.showScore()
-  }
-
-  private showScore() {
-    this.scoreboard.show(this.session && this.names ? scoreView(this.session.match.state, this.names) : null)
-  }
+  setNames(names: Record<Side, string> | null) { this.names = names }
 
   /** Presentation events (sounds, HUD) after effects were applied. */
   onEvents(listener: (events: MatchEvent[]) => void) {
@@ -187,6 +184,8 @@ export class GameRenderer {
       this.effects.showLanding(frame.landing)
       this.updateCamera(session, shown, dt)
     }
+    // Read every frame rather than on events: a reconnect or rematch changes the score without any.
+    this.scoreboard.show(boardFor(this.session, this.names))
     this.net.update(dt)
     this.effects.update(dt)
     if (this.drawable) {
@@ -211,7 +210,6 @@ export class GameRenderer {
         case 'next_serve': this.ball.resetTrail(); break
       }
     }
-    if (events.some((event) => SCORE_EVENTS.has(event.type))) this.showScore()
     for (const listener of this.eventListeners) listener(events)
   }
 

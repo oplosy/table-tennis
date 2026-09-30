@@ -93,7 +93,11 @@ export class PaddleView {
   adopt(model: THREE.Object3D) {
     for (const child of [...this.blade.children]) {
       this.blade.remove(child)
-      if (child instanceof THREE.Mesh) { child.geometry.dispose(); (child.material as THREE.Material).dispose() }
+      if (!(child instanceof THREE.Mesh)) continue
+      const material = child.material as THREE.MeshStandardMaterial
+      child.geometry.dispose()
+      material.roughnessMap?.dispose()
+      material.dispose()
     }
     const tint: Record<string, string> = {
       rubber_forehand: this.colors.forehand, rubber_backhand: this.colors.backhand, handle: this.colors.handle, accent: this.colors.accent,
