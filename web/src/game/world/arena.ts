@@ -1,7 +1,8 @@
 import * as THREE from 'three'
-import { TABLE_HEIGHT } from '@rally/core'
+import { SIDES, TABLE_HEIGHT, sideSign } from '@rally/core'
 import type { RenderProfile } from '../render/profile'
-import { barrierTexture, floorTexture, hallTexture, screenTexture } from './textures'
+import type { Scoreboard } from './scoreboard'
+import { barrierTexture, floorTexture, hallTexture } from './textures'
 
 /** Half extents of the playing court, inside the surround barriers. */
 export const COURT_HALF_X = 3.6
@@ -96,6 +97,8 @@ export function createArena(quality: 'low' | 'high') {
 /** Scales the baked light against the real-time lights on the table; tuned by eye. */
 const BAKED_LIGHT = 1.9
 const LAMP_GLOW = 6
+/** Where the umpire's flip board stands in the arena model (metres). */
+const UMPIRE_BOARD = { x: 2.592, y: 0.915, z: 0.22 }
 const BARRIER_LABELS: Record<string, [string, string]> = {
   barrier_face_A: ['RALLY', 'TABLE TENNIS'], barrier_face_B: ['RALLY', 'OPEN 2026'], barrier_face_C: ['RALLY', 'PLAY ONLINE'], backdrop_logo: ['RALLY', 'OPEN 2026'],
 }
@@ -113,7 +116,7 @@ function forGltf(texture: THREE.Texture) {
  * lights then cost nothing here; a transparent catcher on the court shows the
  * shadows of the things that move.
  */
-export function adoptArenaModel(arena: THREE.Group, model: THREE.Object3D, lightmap: THREE.Texture) {
+export function adoptArenaModel(arena: THREE.Group, model: THREE.Object3D, lightmap: THREE.Texture, scoreboard: Scoreboard) {
   lightmap.flipY = false
   lightmap.colorSpace = THREE.SRGBColorSpace
   lightmap.channel = 1
@@ -128,7 +131,7 @@ export function adoptArenaModel(arena: THREE.Group, model: THREE.Object3D, light
       // Above 1.0 in linear HDR so the bloom threshold catches the lamps and little else.
       material = new THREE.MeshBasicMaterial({ color: source.color.clone().multiplyScalar(LAMP_GLOW) })
     } else if (source.name === 'screen') {
-      material = new THREE.MeshBasicMaterial({ map: forGltf(screenTexture()), color: new THREE.Color(1.5, 1.5, 1.5) })
+      material = new THREE.MeshBasicMaterial({ map: scoreboard.screen, color: new THREE.Color(1.5, 1.5, 1.5) })
     } else {
       material = new THREE.MeshBasicMaterial({ color: source.color.clone() })
       if (source.name === 'court') { material.map = forGltf(floorTexture()); material.color.set('#ffffff') }
@@ -176,6 +179,15 @@ export function adoptArenaModel(arena: THREE.Group, model: THREE.Object3D, light
   catcher.rotation.x = -Math.PI / 2
   catcher.position.y = 0.002
   catcher.receiveShadow = true
+  // Flip board on the umpire's desk: one plate per player, facing the table.
+  const plate = new THREE.PlaneGeometry(0.24, 0.18)
+  for (const side of SIDES) {
+    const digit = new THREE.Mesh(plate, new THREE.MeshBasicMaterial({ map: scoreboard.digits[side], color: new THREE.Color(0.8, 0.8, 0.8) }))
+    digit.name = `umpire_score_${side}`
+    digit.position.set(UMPIRE_BOARD.x, UMPIRE_BOARD.y, sideSign(side) * UMPIRE_BOARD.z)
+    digit.rotation.y = -Math.PI / 2
+    arena.add(digit)
+  }
   arena.add(model, catcher)
 }
 

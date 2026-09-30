@@ -45,6 +45,10 @@ export default function PlayPage() {
   }, [togglePause])
 
   const names = { home: displayName(settings.name), away: OPPONENT_NAMES[settings.difficulty] }
+  useEffect(() => {
+    stage.setNames({ home: names.home, away: names.away })
+    return () => stage.setNames(null)
+  }, [names.home, names.away])
   const closeHelp = () => { setHelp(false); settings.set({ seenTutorial: true }) }
   const restart = () => { setPaused(false); setRound((r) => r + 1) }
 

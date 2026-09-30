@@ -1,13 +1,14 @@
 import * as THREE from 'three'
 import { describe, expect, it, vi } from 'vitest'
 import { adoptArenaModel } from './arena'
+import type { Scoreboard } from './scoreboard'
 import { adoptTableModel, type NetView } from './table'
 
 // The real painters need a 2D canvas, which jsdom does not provide.
 vi.mock('./textures', async () => {
   const three = await import('three')
   const texture = () => new three.Texture()
-  return { barrierTexture: texture, floorTexture: texture, hallTexture: texture, screenTexture: texture, netTexture: texture, radialTexture: texture, rubberTexture: texture }
+  return { barrierTexture: texture, floorTexture: texture, hallTexture: texture, netTexture: texture, radialTexture: texture, rubberTexture: texture }
 })
 
 function mesh(name: string, material: string, attributes: string[] = []) {
@@ -37,11 +38,14 @@ function arenaModel() {
 
 const basic = (object: THREE.Mesh) => object.material as THREE.MeshBasicMaterial
 
+/** Stands in for the canvas-painted scoreboard, which jsdom cannot create. */
+const board = () => ({ screen: new THREE.Texture(), digits: { home: new THREE.Texture(), away: new THREE.Texture() } }) as unknown as Scoreboard
+
 describe('adoptArenaModel', () => {
   it('lights big surfaces from the lightmap through the second UV set', () => {
     const { model, parts } = arenaModel()
     const lightmap = new THREE.Texture()
-    adoptArenaModel(new THREE.Group(), model, lightmap)
+    adoptArenaModel(new THREE.Group(), model, lightmap, board())
     const material = basic(parts.barrier)
     expect(material).toBeInstanceOf(THREE.MeshBasicMaterial)
     expect(material.lightMap).toBe(lightmap)
@@ -53,14 +57,14 @@ describe('adoptArenaModel', () => {
 
   it('lights cluttered objects from their vertex colours instead', () => {
     const { model, parts } = arenaModel()
-    adoptArenaModel(new THREE.Group(), model, new THREE.Texture())
+    adoptArenaModel(new THREE.Group(), model, new THREE.Texture(), board())
     expect(basic(parts.stands).vertexColors).toBe(true)
     expect(basic(parts.stands).lightMap).toBeNull()
   })
 
   it('makes lamps glow above 1.0 and ignores the light baked onto them', () => {
     const { model, parts } = arenaModel()
-    adoptArenaModel(new THREE.Group(), model, new THREE.Texture())
+    adoptArenaModel(new THREE.Group(), model, new THREE.Texture(), board())
     const lamp = basic(parts.lamp)
     expect(Math.max(lamp.color.r, lamp.color.g, lamp.color.b)).toBeGreaterThan(1)
     expect(lamp.vertexColors).toBe(false)
@@ -69,8 +73,8 @@ describe('adoptArenaModel', () => {
 
   it('paints the court, the barrier faces and the screens with game textures', () => {
     const { model, parts } = arenaModel()
-    adoptArenaModel(new THREE.Group(), model, new THREE.Texture())
-    for (const part of [parts.court, parts.face, parts.screen]) {
+    adoptArenaModel(new THREE.Group(), model, new THREE.Texture(), board())
+    for (const part of [parts.court, parts.face]) {
       expect(basic(part).map, part.name).toBeInstanceOf(THREE.Texture)
       expect(basic(part).map!.flipY, part.name).toBe(false)
     }
@@ -80,7 +84,7 @@ describe('adoptArenaModel', () => {
 
   it('shares one material between meshes that look the same', () => {
     const { model, parts } = arenaModel()
-    adoptArenaModel(new THREE.Group(), model, new THREE.Texture())
+    adoptArenaModel(new THREE.Group(), model, new THREE.Texture(), board())
     expect(parts.barrier.material).toBe(parts.barrierCorner.material)
     expect(parts.barrier.material).not.toBe(parts.face.material)
   })
@@ -92,15 +96,29 @@ describe('adoptArenaModel', () => {
     old.geometry.addEventListener('dispose', freed)
     arena.add(old)
     const { model } = arenaModel()
-    adoptArenaModel(arena, model, new THREE.Texture())
+    adoptArenaModel(arena, model, new THREE.Texture(), board())
     expect(old.parent).toBeNull()
     expect(freed).toHaveBeenCalledOnce()
     expect(arena.children).toContain(model)
   })
 
+  it('shows the scoreboard on the screens and on the umpire\'s flip board', () => {
+    const arena = new THREE.Group()
+    const { model, parts } = arenaModel()
+    const scoreboard = board()
+    adoptArenaModel(arena, model, new THREE.Texture(), scoreboard)
+    expect(basic(parts.screen).map).toBe(scoreboard.screen)
+    const home = arena.getObjectByName('umpire_score_home') as THREE.Mesh
+    const away = arena.getObjectByName('umpire_score_away') as THREE.Mesh
+    expect(basic(home).map).toBe(scoreboard.digits.home)
+    expect(basic(away).map).toBe(scoreboard.digits.away)
+    expect(home.position.z).toBeGreaterThan(0)
+    expect(away.position.z).toBeLessThan(0)
+  })
+
   it('adds a shadow catcher that does not fight the floor for depth', () => {
     const arena = new THREE.Group()
-    adoptArenaModel(arena, arenaModel().model, new THREE.Texture())
+    adoptArenaModel(arena, arenaModel().model, new THREE.Texture(), board())
     const catcher = arena.getObjectByName('shadow_catcher') as THREE.Mesh
     const material = catcher.material as THREE.ShadowMaterial
     expect(catcher.receiveShadow).toBe(true)

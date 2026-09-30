@@ -13,6 +13,7 @@
   lighting rig, and a backstage with LED screens and stage spots at each end.
 - The hall's lighting is baked (lightmap and vertex colours), so real-time
   lights no longer pay for it; the ball and paddles still cast live shadows.
+- The hall's LED screens and the umpire's flip board show the live score.
 
 ## 1.0.0 — full rewrite
 

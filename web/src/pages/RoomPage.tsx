@@ -106,6 +106,10 @@ function ConnectedRoom({ ticket, connection }: { ticket: RoomTicket; connection:
   const me = ticket.side
   const nameOf = (side: Side) => room?.players.find((p) => p.side === side)?.name ?? (side === me ? 'You' : 'Opponent')
   const names = { [me]: displayName(nameOf(me)), [other(me)]: nameOf(other(me)) } as Record<Side, string>
+  useEffect(() => {
+    stage.setNames({ home: names.home, away: names.away })
+    return () => stage.setNames(null)
+  }, [names.home, names.away])
   const opponent = room?.players.find((p) => p.side !== me)
   const inviteLink = `${window.location.origin}/room/${ticket.code}`
 

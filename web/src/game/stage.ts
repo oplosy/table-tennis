@@ -1,4 +1,4 @@
-import type { MatchEvent } from '@rally/core'
+import type { MatchEvent, Side } from '@rally/core'
 import { Sound } from './audio/Sound'
 import { GameRenderer } from './GameRenderer'
 import { DemoSession } from './session/LocalSession'
@@ -13,6 +13,7 @@ class Stage {
   renderer: GameRenderer | null = null
   readonly sound = new Sound()
   private session: GameSession | null = null
+  private names: Record<Side, string> | null = null
   private demo: DemoSession | null = null
   private unsubscribe: (() => void) | null = null
 
@@ -20,6 +21,7 @@ class Stage {
     this.renderer = new GameRenderer(canvas, quality)
     this.unsubscribe = this.renderer.onEvents((events) => this.onEvents(events))
     this.renderer.start()
+    this.renderer.setNames(this.names)
     this.renderer.setSession(this.session ?? this.showDemo())
   }
 
@@ -34,6 +36,12 @@ class Stage {
     if (this.session && this.session !== session) this.session.dispose()
     this.session = session
     this.renderer?.setSession(session ?? this.showDemo())
+  }
+
+  /** Names shown on the hall's screens during a match; `null` returns them to the wordmark. */
+  setNames(names: Record<Side, string> | null) {
+    this.names = names
+    this.renderer?.setNames(names)
   }
 
   get current() { return this.session }

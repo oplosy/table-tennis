@@ -91,27 +91,6 @@ export function barrierTexture(label: string, sub: string) {
   return finish(element)
 }
 
-/** Idle picture for the LED screens behind each end. */
-export function screenTexture() {
-  const { element, context } = canvas(1024, 512)
-  const gradient = context.createLinearGradient(0, 0, 1024, 512)
-  gradient.addColorStop(0, '#0a1f52')
-  gradient.addColorStop(1, '#123a8f')
-  context.fillStyle = gradient
-  context.fillRect(0, 0, 1024, 512)
-  context.fillStyle = '#ff6a3d'
-  context.fillRect(0, 468, 1024, 12)
-  context.fillStyle = '#ffffff'
-  context.textAlign = 'center'
-  context.textBaseline = 'middle'
-  context.font = '800 230px "Barlow Condensed", "Arial Narrow", sans-serif'
-  context.fillText('RALLY', 512, 220)
-  context.fillStyle = '#9fc0ff'
-  context.font = '600 56px "Barlow Condensed", "Arial Narrow", sans-serif'
-  context.fillText('TABLE TENNIS OPEN 2026', 512, 390)
-  return finish(element)
-}
-
 /** Vertical gradient for the dark hall behind the court. */
 export function hallTexture() {
   const { element, context } = canvas(16, 512)

@@ -15,11 +15,13 @@ import { gltfSource, loadModels, type ModelsHandle } from './world/assets'
 import { BallView } from './world/ball'
 import { Effects } from './world/effects'
 import { PaddleView } from './world/paddle'
+import { Scoreboard, scoreView } from './world/scoreboard'
 import { adoptTableModel, createNet, createTable, type NetView } from './world/table'
 import type { GameSession } from './session/Session'
 import type { Quality } from '../state/settings'
 
 const HOME_COLORS = { forehand: '#d8262f', backhand: '#15171c', handle: '#b88a52', accent: '#ff6a3d' }
+const SCORE_EVENTS = new Set<MatchEvent['type']>(['point', 'game', 'match', 'next_serve'])
 const AWAY_COLORS = { forehand: '#d8262f', backhand: '#15171c', handle: '#3c4a63', accent: '#39c2ff' }
 
 /**
@@ -37,6 +39,8 @@ export class GameRenderer {
   private readonly effects = new Effects()
   private readonly environment: EnvironmentHandle
   private readonly models: ModelsHandle
+  private readonly scoreboard = new Scoreboard()
+  private names: Record<Side, string> | null = null
   readonly postfx: PostFx
   private readonly profile: RenderProfile
   private readonly raycaster = new THREE.Raycaster()
@@ -81,7 +85,7 @@ export class GameRenderer {
     this.models = loadModels({ table: tableUrl, paddle: paddleUrl, arena: arenaUrl, lightmap: lightmapUrl }, gltfSource(), {
       table: (model) => adoptTableModel(table, this.net, model),
       paddle: (model) => { this.paddles.home.adopt(model); this.paddles.away.adopt(model) },
-      arena: (model, lightmap) => adoptArenaModel(arena, model, lightmap),
+      arena: (model, lightmap) => adoptArenaModel(arena, model, lightmap, this.scoreboard),
     })
     this.postfx = createPostFx(this.renderer, this.scene, this.camera, this.profile)
 
@@ -98,8 +102,19 @@ export class GameRenderer {
 
   setSession(session: GameSession | null) {
     this.session = session
+    this.showScore()
     this.ball.resetTrail()
     this.ballOffset.set(0, 0, 0)
+  }
+
+  /** Player names for the hall's screens; `null` (menus, demo rally) shows the wordmark instead. */
+  setNames(names: Record<Side, string> | null) {
+    this.names = names
+    this.showScore()
+  }
+
+  private showScore() {
+    this.scoreboard.show(this.session && this.names ? scoreView(this.session.match.state, this.names) : null)
   }
 
   /** Presentation events (sounds, HUD) after effects were applied. */
@@ -135,6 +150,7 @@ export class GameRenderer {
       }
     })
     this.models.dispose()
+    this.scoreboard.dispose()
     this.postfx.dispose()
     this.environment.dispose()
     this.renderer.dispose()
@@ -195,6 +211,7 @@ export class GameRenderer {
         case 'next_serve': this.ball.resetTrail(); break
       }
     }
+    if (events.some((event) => SCORE_EVENTS.has(event.type))) this.showScore()
     for (const listener of this.eventListeners) listener(events)
   }
 
