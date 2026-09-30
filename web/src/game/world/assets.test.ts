@@ -1,6 +1,6 @@
 import * as THREE from 'three'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { REQUIRED_NODES, loadModels, type ModelSlots, type ModelSource } from './assets'
+import { REQUIRED_NODES, disposeModel, loadModels, type ModelSlots, type ModelSource } from './assets'
 
 const URLS = { table: 'table.glb', paddle: 'paddle.glb', arena: 'arena.glb', lightmap: 'lightmap.webp' }
 
@@ -141,5 +141,69 @@ describe('loadModels', () => {
     await handle.ready
     expect(into.paddle).toHaveBeenCalledOnce()
     expect(warn).toHaveBeenCalledOnce()
+    // The procedural part may already be gone by then, so the warning must not promise it.
+    expect(String(warn.mock.calls[0][0])).toContain('could not be shown')
+    expect(String(warn.mock.calls[0][0])).not.toContain('procedural')
+  })
+
+  it('frees the lightmap when the arena model fails to load', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const parts = complete()
+    const into = slots()
+    const freed = vi.fn()
+    parts.lightmap.addEventListener('dispose', freed)
+    const handle = loadModels(URLS, source({
+      'table.glb': Promise.resolve(parts.table.group), 'paddle.glb': Promise.resolve(parts.paddle.group), 'arena.glb': Promise.reject(new Error('404')),
+    }, Promise.resolve(parts.lightmap)), into)
+    await handle.ready
+    expect(into.arena).not.toHaveBeenCalled()
+    expect(freed).toHaveBeenCalledOnce()
+    expect(warn).toHaveBeenCalledOnce()
+    expect(String(warn.mock.calls[0][0])).toContain('404')
+  })
+
+  it('frees the arena and its lightmap when the arena lacks a node', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const parts = complete()
+    const broken = model(['floor', 'barriers'])
+    const into = slots()
+    const freed = vi.fn()
+    parts.lightmap.addEventListener('dispose', freed)
+    const handle = loadModels(URLS, source({
+      'table.glb': Promise.resolve(parts.table.group), 'paddle.glb': Promise.resolve(parts.paddle.group), 'arena.glb': Promise.resolve(broken.group),
+    }, Promise.resolve(parts.lightmap)), into)
+    await handle.ready
+    expect(into.arena).not.toHaveBeenCalled()
+    expect(broken.disposed).toHaveBeenCalled()
+    expect(freed).toHaveBeenCalledOnce()
+    expect(String(warn.mock.calls[0][0])).toContain('stands')
+  })
+
+  it('stays quiet about downloads that fail after dispose', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const parts = complete()
+    const pending = deferred<THREE.Object3D>()
+    const handle = loadModels(URLS, source({
+      'table.glb': pending.promise, 'paddle.glb': Promise.resolve(parts.paddle.group), 'arena.glb': Promise.resolve(parts.arena.group),
+    }, Promise.resolve(parts.lightmap)), slots())
+    handle.dispose()
+    pending.reject(new Error('aborted'))
+    await handle.ready
+    expect(warn).not.toHaveBeenCalled()
+  })
+
+})
+
+describe('disposeModel', () => {
+  it('frees geometry, materials and the textures they hold', () => {
+    const freed: string[] = []
+    const map = new THREE.Texture()
+    const material = new THREE.MeshStandardMaterial({ map })
+    const mesh = new THREE.Mesh(new THREE.BufferGeometry(), material)
+    map.addEventListener('dispose', () => freed.push('texture'))
+    material.addEventListener('dispose', () => freed.push('material'))
+    mesh.geometry.addEventListener('dispose', () => freed.push('geometry'))
+    disposeModel(new THREE.Group().add(mesh))
+    expect(freed.sort()).toEqual(['geometry', 'material', 'texture'])
   })
 })

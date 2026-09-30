@@ -40,7 +40,10 @@ export function disposeModel(model: THREE.Object3D) {
   model.traverse((object) => {
     if (!(object instanceof THREE.Mesh)) return
     object.geometry.dispose()
-    for (const material of Array.isArray(object.material) ? object.material : [object.material]) material.dispose()
+    for (const material of Array.isArray(object.material) ? object.material : [object.material]) {
+      for (const value of Object.values(material)) if (value instanceof THREE.Texture) value.dispose()
+      material.dispose()
+    }
   })
 }
 
@@ -62,11 +65,15 @@ export function loadModels(urls: ModelUrls, source: ModelSource, slots: ModelSlo
   let disposed = false
 
   const part = async (name: string, load: () => Promise<() => void>) => {
+    let show: () => void
     try {
-      (await load())()
+      show = await load()
     } catch (error) {
       if (!disposed) console.warn(`Model "${name}" unavailable; keeping the procedural one. ${String(error)}`)
+      return
     }
+    // A slot may fail halfway through its swap, so nothing is promised about what is left on screen.
+    try { show() } catch (error) { console.warn(`Model "${name}" could not be shown. ${String(error)}`) }
   }
 
   const single = (name: 'table' | 'paddle') => part(name, async () => {
@@ -93,6 +100,9 @@ export function loadModels(urls: ModelUrls, source: ModelSource, slots: ModelSlo
 
   return {
     ready: Promise.all([single('table'), single('paddle'), arena]).then(() => {}),
+    // Downloads still running are left to finish and are then dropped. three shares one
+    // request between loaders asking for the same URL, so aborting here would also fail
+    // the renderer mounted right after this one (a quality switch, React's development remount).
     dispose() { disposed = true },
   }
 }
