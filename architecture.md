@@ -120,10 +120,25 @@ konumlanma hatası, güç aralığı ve isabetle ayrılır. Denge
 - **Tek sahne:** `stage.ts` uygulama boyunca tek bir WebGL renderer tutar;
   sayfalar yalnızca oturumu değiştirir. Ana menünün arkasında iki yapay zekânın
   demo maçı döner.
-- **Görsel dünya (`game/world/`):** salon, bariyerler, tribünler, WTT yayın
-  tarzı ışık düzeni (tepeden tek gölgeli key, kort yıkaması, rim), regülasyon
-  masa ve file, prosedürel raketler, top izi ve temas gölgesi. Dokular çalışma
-  anında canvas'a çizilir; tek ikili asset `src/assets/env/` altındaki HDRI'dir (Vite hash'li dosya adıyla paketler).
+- **Görsel dünya (`game/world/`):** masa, raket ve salon Blender'da modellenmiş
+  GLB'lerdir (`src/assets/models/`); `assets.ts` onları oyunu bekletmeden yükler.
+  Modeller gelene kadar ve yüklenemeyen her parça için aynı dosyalardaki
+  yordamsal karşılıkları görünür. File bezi, top, top izi ve vuruş efektleri
+  yordamsaldır; kort zemini, bariyer yazıları ve ekranlar canvas'a çizilir.
+  - **Salon ışıksızdır:** ışığı Blender'da bake edilmiştir. Büyük yüzeyler
+    ikinci UV kanalıyla ortak bir lightmap okur; koltuklar ve kafes kirişler
+    gibi çok parçalı nesneler ışığı köşe noktası renklerinde taşır. Gerçek
+    zamanlı ışıkların salona maliyeti yoktur.
+  - **Gölgeler:** masanın zemindeki gölgesi lightmap'tedir; top ve raketlerin
+    gölgesini kortun üstündeki şeffaf bir gölge yakalayıcı gösterir.
+  - **Masa ve raket ışıklıdır:** WTT yayın tarzı düzen (tepeden tek gölgeli
+    key, kort yıkaması, rim) onları aydınlatır; masanın AO'su köşe noktası
+    renklerindedir. Raket tek modeldir, oyuncuya göre kodda renklenir.
+- **Asset hattı (`tools/blender/`):** kaynak `rally_assets.blend` (elle
+  modellenir). `export.py` her koleksiyonu meshopt sıkıştırmalı GLB'ye yazar,
+  `bake.py` salon ışığını ve masa AO'sunu bake eder, `render_env.py` salonun
+  360° ortam haritasını çıkarır. `models.test.ts` GLB'leri `packages/core`
+  ölçüleriyle (±1 mm), ad sözleşmesiyle ve 6 MB bütçeyle karşılaştırır.
 - **Render (`game/render/`):** `profile.ts` kalite katmanını (piksel oranı,
   gölge, MSAA/FXAA, AO, bloom, grading) tanımlar. `environment.ts` HDRI'yi
   PMREM'e çevirir; yüklenene kadar ve hata durumunda `RoomEnvironment` kullanır.

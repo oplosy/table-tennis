@@ -8,6 +8,11 @@
   (High), bloom on the ceiling lamps, AgX tone mapping and light grading.
 - Touch devices start on the Fast graphics tier; the choice is still saved.
 - Ambient occlusion switches itself off when the frame rate cannot be held.
+- Table, paddle and hall modelled in Blender: a regulation table on a
+  rollaway frame, a layered paddle, padded surround boards, seated stands, a
+  lighting rig, and a backstage with LED screens and stage spots at each end.
+- The hall's lighting is baked (lightmap and vertex colours), so real-time
+  lights no longer pay for it; the ball and paddles still cast live shadows.
 
 ## 1.0.0 — full rewrite
 
