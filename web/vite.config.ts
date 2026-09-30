@@ -1,19 +1,23 @@
 import { defineConfig } from 'vitest/config'
 import react from '@vitejs/plugin-react'
 
+const backend = process.env.RALLY_SERVER ?? 'http://127.0.0.1:8080'
+
 export default defineConfig({
   plugins: [react()],
+  assetsInclude: ['**/*.glb'],
   server: {
     port: 5173,
     proxy: {
-      '/api': {
-        target: 'http://127.0.0.1:8080',
-        changeOrigin: true,
-      },
-      '/ws': {
-        target: 'ws://127.0.0.1:8080',
-        ws: true,
-      },
+      '/api': { target: backend, changeOrigin: true },
+      '/ws': { target: backend.replace(/^http/, 'ws'), ws: true },
+    },
+  },
+  build: {
+    target: 'es2022',
+    chunkSizeWarningLimit: 900,
+    rollupOptions: {
+      output: { manualChunks: { three: ['three'], postfx: ['postprocessing', 'n8ao'], react: ['react', 'react-dom', 'react-router-dom'] } },
     },
   },
   test: {
