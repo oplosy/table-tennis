@@ -20,6 +20,11 @@ export interface Settings {
   set: (patch: Partial<Omit<Settings, 'set'>>) => void
 }
 
+/** Touch devices start on the fast tier; the full post chain is sized for desktop GPUs. */
+export function defaultQuality(matchMedia: ((query: string) => { matches: boolean }) | undefined): Quality {
+  try { return matchMedia?.('(pointer: coarse)').matches ? 'low' : 'high' } catch { return 'high' }
+}
+
 const safeStorage = () => {
   try { return window.localStorage } catch { return undefined as unknown as Storage }
 }
@@ -31,7 +36,7 @@ export const useSettings = create<Settings>()(persist((set) => ({
   bestOf: 3,
   sound: true,
   assist: true,
-  quality: 'high',
+  quality: defaultQuality(typeof window === 'undefined' ? undefined : window.matchMedia?.bind(window)),
   seenTutorial: false,
   set: (patch) => set(patch),
 }), { name: 'rally-settings', version: 1, storage: createJSONStorage(safeStorage) }))
