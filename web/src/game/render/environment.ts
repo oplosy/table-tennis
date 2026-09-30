@@ -18,8 +18,8 @@ export interface EnvironmentHandle { ready: Promise<void>; dispose(): void }
 /** The procedural room shown until (or instead of) the HDRI. */
 export const FALLBACK_LOOK: EnvironmentLook = { intensity: 0.15, rotationY: 0 }
 /**
- * Poly Haven `dancing_hall`: dark ceiling with neutral LED grids overhead.
- * Kept low: its bright floor and walls would otherwise fill in the stands.
+ * A 360-degree render of our own hall (tools/blender/render_env.py). Kept low:
+ * the lit court fills its lower half and would otherwise wash the table red.
  */
 export const ARENA_LOOK: EnvironmentLook = { intensity: 0.15, rotationY: 0 }
 
