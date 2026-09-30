@@ -143,7 +143,19 @@ describe('arena.glb', () => {
   })
 
   it('names the surfaces the game textures itself', () => {
-    expect(materialNames(arena)).toEqual(expect.arrayContaining(['court', 'barrier_face_A', 'barrier_face_B', 'barrier_face_C', 'lamp']))
+    expect(materialNames(arena)).toEqual(expect.arrayContaining(['court', 'barrier_face_A', 'barrier_face_B', 'barrier_face_C', 'lamp', 'screen', 'backdrop_logo']))
+  })
+
+  it('faces a screen towards the court from behind each end', () => {
+    const home = boundsOf(arena, 'screen_home')
+    const away = boundsOf(arena, 'screen_away')
+    expect(home.min[2]).toBeGreaterThan(COURT_HALF_Z + 2)
+    expect(away.max[2]).toBeLessThan(-COURT_HALF_Z - 2)
+    for (const { min, max } of [home, away]) {
+      expect(min[1]).toBeGreaterThan(1)
+      expect(max[0] - min[0]).toBeCloseTo(6, 1)
+      expect(Math.abs(min[0] + max[0])).toBeLessThan(MM)
+    }
   })
 })
 
