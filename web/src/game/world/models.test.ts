@@ -1,9 +1,11 @@
 import { beforeAll, describe, expect, it } from 'vitest'
 import { getBounds, type Document } from '@gltf-transform/core'
-import { HALF_LENGTH, HALF_WIDTH, NET_HALF_WIDTH, NET_TOP, TABLE_HEIGHT, TABLE_THICKNESS } from '@rally/core'
+import { HALF_LENGTH, HALF_WIDTH, NET_HALF_WIDTH, NET_TOP, PADDLE_MAX_DEPTH, PADDLE_MAX_X, TABLE_HEIGHT, TABLE_THICKNESS } from '@rally/core'
+import arenaGlb from '../../assets/models/arena.glb?inline'
 import paddleGlb from '../../assets/models/paddle.glb?inline'
 import tableGlb from '../../assets/models/table.glb?inline'
 import { boundsOf, inlineBytes, materialNames, readGlb } from '../../test/glb'
+import { COURT_HALF_X, COURT_HALF_Z } from './arena'
 
 /** The models must agree with the simulation to the millimetre, or the ball would bounce on air. */
 const MM = 0.001
@@ -95,6 +97,53 @@ describe('paddle.glb', () => {
 
   it('names the materials the game recolours per player', () => {
     expect(materialNames(paddle)).toEqual(expect.arrayContaining(['rubber_forehand', 'rubber_backhand', 'wood', 'handle', 'accent']))
+  })
+})
+
+describe('arena.glb', () => {
+  let arena: Document
+  beforeAll(async () => { arena = await readGlb(arenaGlb) })
+
+  it('lays the floor at the height the ball bounces on', () => {
+    const { min, max } = boundsOf(arena, 'floor')
+    expect(Math.abs(max[1])).toBeLessThan(MM)
+    expect(min[0]).toBeLessThan(-COURT_HALF_X)
+    expect(max[0]).toBeGreaterThan(COURT_HALF_X)
+    expect(min[2]).toBeLessThan(-COURT_HALF_Z)
+    expect(max[2]).toBeGreaterThan(COURT_HALF_Z)
+  })
+
+  it('surrounds the court with barriers', () => {
+    const { min, max } = boundsOf(arena, 'barriers')
+    expect(max[1]).toBeGreaterThan(0.7)
+    expect(max[1]).toBeLessThan(0.8)
+    for (const [value, half] of [[-min[0], COURT_HALF_X], [max[0], COURT_HALF_X], [-min[2], COURT_HALF_Z], [max[2], COURT_HALF_Z]]) {
+      expect(value).toBeGreaterThanOrEqual(half)
+      expect(value).toBeLessThan(half + 0.5)
+    }
+  })
+
+  it('keeps the stands behind the barriers and the lamps overhead', () => {
+    const stands = boundsOf(arena, 'stands')
+    expect(stands.min[0]).toBeLessThan(-COURT_HALF_X - 1)
+    expect(stands.max[0]).toBeGreaterThan(COURT_HALF_X + 1)
+    expect(boundsOf(arena, 'lamps').min[1]).toBeGreaterThan(6)
+  })
+
+  it('leaves the space the players move in empty', () => {
+    const reachX = PADDLE_MAX_X + 0.3
+    const reachZ = PADDLE_MAX_DEPTH + 0.3
+    const open = ['floor', 'barriers', 'stands', 'hall']
+    for (const node of arena.getRoot().listNodes()) {
+      if (open.includes(node.getName()) || !node.getMesh()) continue
+      const { min, max } = boundsOf(arena, node.getName())
+      const clear = min[0] > reachX || max[0] < -reachX || min[2] > reachZ || max[2] < -reachZ || min[1] > 3
+      expect(clear, `${node.getName()} intrudes into the play area`).toBe(true)
+    }
+  })
+
+  it('names the surfaces the game textures itself', () => {
+    expect(materialNames(arena)).toEqual(expect.arrayContaining(['court', 'barrier_face_A', 'barrier_face_B', 'barrier_face_C', 'lamp']))
   })
 })
 

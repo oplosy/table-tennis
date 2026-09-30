@@ -33,6 +33,8 @@ def export(collection_name, filename):
         export_cameras=False,
         export_lights=False,
         export_animations=False,
+        export_meshopt_compression_enable=True,  # decoded by three's MeshoptDecoder
+        export_meshopt_extension="EXT_meshopt_compression",
     )
     print(f"wrote {filename}: {os.path.getsize(path)} bytes, {len(meshes)} meshes")
     return path

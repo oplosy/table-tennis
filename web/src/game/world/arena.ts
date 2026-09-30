@@ -3,8 +3,9 @@ import { TABLE_HEIGHT } from '@rally/core'
 import type { RenderProfile } from '../render/profile'
 import { barrierTexture, floorTexture, hallTexture } from './textures'
 
-const COURT_HALF_X = 3.6
-const COURT_HALF_Z = 6.8
+/** Half extents of the playing court, inside the surround barriers. */
+export const COURT_HALF_X = 3.6
+export const COURT_HALF_Z = 6.8
 
 /**
  * Competition hall around the table: sports floor, surround barriers, tiered
