@@ -1,6 +1,7 @@
 import { beforeAll, describe, expect, it } from 'vitest'
 import { getBounds, type Document } from '@gltf-transform/core'
 import { HALF_LENGTH, HALF_WIDTH, NET_HALF_WIDTH, NET_TOP, TABLE_HEIGHT, TABLE_THICKNESS } from '@rally/core'
+import paddleGlb from '../../assets/models/paddle.glb?inline'
 import tableGlb from '../../assets/models/table.glb?inline'
 import { boundsOf, inlineBytes, materialNames, readGlb } from '../../test/glb'
 
@@ -51,6 +52,49 @@ describe('table.glb', () => {
     const { min, max } = getBounds(scene)
     expect(Math.abs(min[0] + max[0])).toBeLessThan(2 * MM)
     expect(Math.abs(min[2] + max[2])).toBeLessThan(2 * MM)
+  })
+})
+
+describe('paddle.glb', () => {
+  let paddle: Document
+  beforeAll(async () => { paddle = await readGlb(paddleGlb) })
+
+  it('has a real-size blade centred on the origin, facing along z', () => {
+    const { min, max } = boundsOf(paddle, 'blade')
+    const width = max[0] - min[0]
+    const thickness = max[2] - min[2]
+    expect(width).toBeGreaterThan(0.148)
+    expect(width).toBeLessThan(0.16)
+    expect(thickness).toBeGreaterThan(0.009)
+    expect(thickness).toBeLessThan(0.012)
+    expect(Math.abs(min[0] + max[0])).toBeLessThan(MM)
+    expect(Math.abs(min[2] + max[2])).toBeLessThan(MM)
+    expect(max[1]).toBeGreaterThan(0.075)
+    expect(max[1]).toBeLessThan(0.085)
+  })
+
+  it('hangs the handle below the blade, as the grip animation assumes', () => {
+    const { min, max } = boundsOf(paddle, 'handle')
+    expect(max[1]).toBeLessThan(-0.06)
+    expect(min[1]).toBeGreaterThan(-0.2)
+    expect(min[1]).toBeLessThan(-0.17)
+    expect(Math.abs(min[0] + max[0])).toBeLessThan(MM)
+    expect(Math.abs(min[2] + max[2])).toBeLessThan(MM)
+  })
+
+  it('puts the forehand rubber on +z and the backhand on -z', () => {
+    const side = (material: string) => {
+      const primitive = paddle.getRoot().listMeshes().flatMap((m) => m.listPrimitives()).find((p) => p.getMaterial()?.getName() === material)
+      if (!primitive) throw new Error(`No geometry uses ${material}`)
+      const position = primitive.getAttribute('POSITION')!
+      return { min: position.getMin([0, 0, 0])[2], max: position.getMax([0, 0, 0])[2] }
+    }
+    expect(side('rubber_forehand').min).toBeGreaterThan(0)
+    expect(side('rubber_backhand').max).toBeLessThan(0)
+  })
+
+  it('names the materials the game recolours per player', () => {
+    expect(materialNames(paddle)).toEqual(expect.arrayContaining(['rubber_forehand', 'rubber_backhand', 'wood', 'handle', 'accent']))
   })
 })
 
