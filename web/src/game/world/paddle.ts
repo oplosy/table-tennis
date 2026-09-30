@@ -39,6 +39,8 @@ export class PaddleView {
   private readonly blade = new THREE.Group()
   private readonly colors: PaddleColors
   private readonly side: Side
+  /** Painted once and worn by whichever blade is showing. */
+  private readonly pimples = rubberTexture()
   private hand = 1
   private swingTime = 1
   private swingPower = 0
@@ -47,7 +49,7 @@ export class PaddleView {
   constructor(side: Side, colors: PaddleColors) {
     this.side = side
     this.colors = colors
-    const bump = rubberTexture()
+    const bump = this.pimples
     const forehand = new THREE.MeshStandardMaterial({ color: colors.forehand, roughness: 0.55, roughnessMap: bump })
     const backhand = new THREE.MeshStandardMaterial({ color: colors.backhand, roughness: 0.6, roughnessMap: bump })
     const wood = new THREE.MeshStandardMaterial({ color: '#d7b27a', roughness: 0.65 })
@@ -94,16 +96,14 @@ export class PaddleView {
     for (const child of [...this.blade.children]) {
       this.blade.remove(child)
       if (!(child instanceof THREE.Mesh)) continue
-      const material = child.material as THREE.MeshStandardMaterial
       child.geometry.dispose()
-      material.roughnessMap?.dispose()
-      material.dispose()
+      ;(child.material as THREE.Material).dispose()
     }
     const tint: Record<string, string> = {
       rubber_forehand: this.colors.forehand, rubber_backhand: this.colors.backhand, handle: this.colors.handle, accent: this.colors.accent,
     }
     // Painted detail the model does not carry: pimples on the rubbers, grain in the wood.
-    const pimples = rubberTexture()
+    const pimples = this.pimples
     const grain = woodTexture()
     const copy = model.clone(true)
     const materials = new Map<THREE.Material, THREE.MeshStandardMaterial>()

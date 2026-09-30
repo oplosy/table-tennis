@@ -63,16 +63,24 @@ describe('PaddleView.adopt', () => {
     expect(original.roughnessMap).toBeNull()
   })
 
-  it('frees the procedural blade and its painted rubber', () => {
+  it('frees the procedural blade but keeps its painted rubber for the model', () => {
     const view = new PaddleView('away', COLORS)
     const freed: string[] = []
+    let pimples: THREE.Texture | null = null
     view.root.traverse((object) => {
       if (!(object instanceof THREE.Mesh)) return
       const material = object.material as THREE.MeshStandardMaterial
-      material.roughnessMap?.addEventListener('dispose', () => freed.push('rubber'))
+      if (!material.roughnessMap) return
+      pimples = material.roughnessMap
+      pimples.addEventListener('dispose', () => freed.push('rubber'))
+      object.geometry.addEventListener('dispose', () => freed.push('geometry'))
+      material.addEventListener('dispose', () => freed.push('material'))
     })
     view.adopt(paddleModel())
-    expect(freed).toContain('rubber')
+    expect(freed.sort()).toEqual(['geometry', 'geometry', 'material', 'material'])
+    const rubber = (view.root.getObjectByName('part_rubber_forehand') as THREE.Mesh).material as THREE.MeshStandardMaterial
+    expect(pimples).not.toBeNull()
+    expect(rubber.roughnessMap).toBe(pimples)
   })
 
   it('casts shadows', () => {
