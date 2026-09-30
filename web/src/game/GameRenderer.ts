@@ -9,7 +9,7 @@ import { HALF_LENGTH, TABLE_HEIGHT, sideSign, type MatchEvent, type Side, type V
 import { FrameBudget } from './render/budget'
 import { loadEnvironment, pmremBaker, type EnvironmentHandle } from './render/environment'
 import { createPostFx, type PostFx } from './render/postfx'
-import { renderProfile, type RenderProfile } from './render/profile'
+import { canDraw, renderProfile, type RenderProfile } from './render/profile'
 import { adoptArenaModel, createArena, createLights } from './world/arena'
 import { gltfSource, loadModels, type ModelsHandle } from './world/assets'
 import { BallView } from './world/ball'
@@ -151,6 +151,10 @@ export class GameRenderer {
     this.postfx.dispose()
     this.environment.dispose()
     this.renderer.dispose()
+    // A canvas that left the page takes its context along; browsers only allow a handful
+    // and would otherwise keep this one until garbage collection. A canvas still in the
+    // page (React's development remount) will be mounted again and must keep it.
+    if (!this.canvas.isConnected) this.renderer.forceContextLoss()
   }
 
   /** Development aid: renders `ms` of synthetic time in 1/60 s frames. */
@@ -254,9 +258,7 @@ export class GameRenderer {
   private resize() {
     const width = this.canvas.clientWidth
     const height = this.canvas.clientHeight
-    // A canvas without layout (hidden page, collapsed pane) has nothing to draw
-    // into, and the post chain's half-resolution buffers cannot be zero-sized.
-    this.drawable = width > 0 && height > 0
+    this.drawable = canDraw(width, height)
     if (!this.drawable) return
     this.postfx.setSize(width, height)
     this.camera.aspect = width / height

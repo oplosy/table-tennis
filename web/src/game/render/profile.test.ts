@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { renderProfile } from './profile'
+import { canDraw, renderProfile } from './profile'
 
 describe('renderProfile', () => {
   it('gives desktop the full chain', () => {
@@ -27,5 +27,22 @@ describe('renderProfile', () => {
     const a = renderProfile('high')
     a.bloom.intensity = 99
     expect(renderProfile('high').bloom.intensity).not.toBe(99)
+  })
+})
+
+describe('canDraw', () => {
+  it('refuses a canvas without layout', () => {
+    expect(canDraw(0, 0)).toBe(false)
+    expect(canDraw(800, 0)).toBe(false)
+  })
+
+  it('refuses a canvas too thin for the half-resolution buffers', () => {
+    expect(canDraw(1, 600)).toBe(false)
+    expect(canDraw(800, 1)).toBe(false)
+  })
+
+  it('accepts anything larger', () => {
+    expect(canDraw(2, 2)).toBe(true)
+    expect(canDraw(1280, 720)).toBe(true)
   })
 })

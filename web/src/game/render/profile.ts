@@ -14,6 +14,15 @@ export interface RenderProfile {
   grading: { contrast: number; saturation: number; vignette: number }
 }
 
+/**
+ * Whether a canvas of this layout size can be drawn into. Without layout
+ * (hidden page, collapsed pane) there is nothing to draw, and a single pixel
+ * would leave the post chain's half-resolution buffers zero-sized.
+ */
+export function canDraw(width: number, height: number) {
+  return width >= 2 && height >= 2
+}
+
 // Shared by both tiers so switching quality changes cost, not the look.
 const GRADING = { contrast: 0.12, saturation: 0.12, vignette: 0.35 }
 const BLOOM_THRESHOLD = 0.9
