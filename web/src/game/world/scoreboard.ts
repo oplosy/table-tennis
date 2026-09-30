@@ -1,5 +1,5 @@
 import * as THREE from 'three'
-import { SIDES, type MatchState, type Side } from '@rally/core'
+import { SIDES, type Match, type MatchState, type Side } from '@rally/core'
 
 /** What the hall's screens and the umpire's flip board show. */
 export interface ScoreView {
@@ -30,7 +30,24 @@ export function scoreView(state: MatchState, names: Record<Side, string>): Score
   }
 }
 
-const FONT = '"Barlow Condensed", "Arial Narrow", sans-serif'
+/**
+ * What the hall should show: the score of a match somebody is playing, or
+ * nothing (the wordmark) behind menus, where only the demo rally runs.
+ */
+export function boardFor(session: { localSide: Side | null; match: Pick<Match, 'state'> } | null, names: Record<Side, string> | null): ScoreView | null {
+  return session?.localSide && names ? scoreView(session.match.state, names) : null
+}
+
+export function sameScore(a: ScoreView | null, b: ScoreView | null) {
+  if (!a || !b) return a === b
+  return a.server === b.server && a.winner === b.winner
+    && SIDES.every((side) => a.names[side] === b.names[side] && a.points[side] === b.points[side] && a.games[side] === b.games[side])
+}
+
+const FAMILY = 'Barlow Condensed'
+const FONT = `"${FAMILY}", "Arial Narrow", sans-serif`
+/** Room for a name before the games column; longer names are squeezed, not spilled. */
+const NAME_WIDTH = 540
 const SCREEN = { width: 1024, height: 512 }
 const DIGIT = { width: 256, height: 192 }
 
@@ -58,6 +75,9 @@ export class Scoreboard {
   readonly digits: Record<Side, THREE.CanvasTexture>
   private readonly screenContext: CanvasRenderingContext2D
   private readonly digitContexts: Record<Side, CanvasRenderingContext2D>
+  private shown: ScoreView | null = null
+  private painted = false
+  private disposed = false
 
   constructor() {
     const screen = canvasTexture(SCREEN.width, SCREEN.height, false)
@@ -68,9 +88,20 @@ export class Scoreboard {
     this.digits = { home: home.texture, away: away.texture }
     this.digitContexts = { home: home.context, away: away.context }
     this.show(null)
+    // The web font may still be loading: what was painted in the fallback face is redone once it arrives.
+    void document.fonts?.load(`800 100px "${FAMILY}"`).then(() => { if (!this.disposed) this.paint() }).catch(() => {})
   }
 
+  /** Cheap to call every frame: it only repaints when something on the board changed. */
   show(view: ScoreView | null) {
+    if (this.painted && sameScore(view, this.shown)) return
+    this.shown = view
+    this.paint()
+  }
+
+  private paint() {
+    const view = this.shown
+    this.painted = true
     if (view) this.paintScore(view)
     else this.paintIdle()
     this.screen.needsUpdate = true
@@ -81,6 +112,7 @@ export class Scoreboard {
   }
 
   dispose() {
+    this.disposed = true
     this.screen.dispose()
     for (const side of SIDES) this.digits[side].dispose()
   }
@@ -130,7 +162,7 @@ export class Scoreboard {
       context.textAlign = 'left'
       context.fillStyle = '#ffffff'
       context.font = `700 84px ${FONT}`
-      context.fillText(view.names[side], 122, y + 4)
+      context.fillText(view.names[side], 122, y + 4, NAME_WIDTH)
       context.textAlign = 'center'
       context.fillStyle = '#9fc0ff'
       context.font = `700 76px ${FONT}`

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { Match, defaultConfig } from '@rally/core'
-import { scoreView, shortName } from './scoreboard'
+import { boardFor, sameScore, scoreView, shortName } from './scoreboard'
 
 const NAMES = { home: 'Mesut', away: 'Club player' }
 
@@ -42,5 +42,43 @@ describe('shortName', () => {
 
   it('falls back to a dash for an empty name', () => {
     expect(shortName('   ')).toBe('—')
+  })
+})
+
+describe('boardFor', () => {
+  const match = new Match(defaultConfig())
+
+  it('shows the score of a match somebody is playing', () => {
+    expect(boardFor({ localSide: 'away', match }, NAMES)?.names.home).toBe('MESUT')
+  })
+
+  it('shows the wordmark behind menus, where the demo rally has no players', () => {
+    expect(boardFor({ localSide: null, match }, NAMES)).toBeNull()
+  })
+
+  it('shows the wordmark until the players are known', () => {
+    expect(boardFor({ localSide: 'home', match }, null)).toBeNull()
+    expect(boardFor(null, NAMES)).toBeNull()
+  })
+})
+
+describe('sameScore', () => {
+  const view = () => scoreView(new Match(defaultConfig()).state, NAMES)
+
+  it('treats equal boards as unchanged, so nothing is repainted', () => {
+    expect(sameScore(view(), view())).toBe(true)
+    expect(sameScore(null, null)).toBe(true)
+  })
+
+  it('notices a point, a game, the server, the winner and a name changing', () => {
+    const changed = [
+      { ...view(), points: { home: 1, away: 0 } },
+      { ...view(), games: { home: 0, away: 1 } },
+      { ...view(), server: 'away' as const },
+      { ...view(), winner: 'home' as const },
+      { ...view(), names: { home: 'OTHER', away: 'CLUB PLAYER' } },
+    ]
+    for (const other of changed) expect(sameScore(view(), other)).toBe(false)
+    expect(sameScore(view(), null)).toBe(false)
   })
 })
