@@ -1,4 +1,6 @@
 import * as THREE from 'three'
+// Bundled as a hashed asset so the server can cache it forever.
+import environmentUrl from '../assets/env/arena_1k.hdr?url'
 import { HALF_LENGTH, TABLE_HEIGHT, sideSign, type MatchEvent, type Side, type Vec3 } from '@rally/core'
 import { loadEnvironment, pmremBaker, type EnvironmentHandle } from './render/environment'
 import { createPostFx, type PostFx } from './render/postfx'
@@ -13,7 +15,6 @@ import type { Quality } from '../state/settings'
 
 const HOME_COLORS = { forehand: '#d8262f', backhand: '#15171c', handle: '#b88a52', accent: '#ff6a3d' }
 const AWAY_COLORS = { forehand: '#d8262f', backhand: '#15171c', handle: '#3c4a63', accent: '#39c2ff' }
-const ENVIRONMENT_URL = `${import.meta.env.BASE_URL}env/arena_1k.hdr`
 
 /**
  * Owns the WebGL renderer, the scene and the camera. Each animation frame it
@@ -58,7 +59,7 @@ export class GameRenderer {
     this.renderer.shadowMap.enabled = true
     this.renderer.shadowMap.type = this.profile.softShadows ? THREE.PCFSoftShadowMap : THREE.PCFShadowMap
 
-    this.environment = loadEnvironment(this.scene, ENVIRONMENT_URL, pmremBaker(this.renderer))
+    this.environment = loadEnvironment(this.scene, environmentUrl, pmremBaker(this.renderer))
     this.scene.background = new THREE.Color('#060911')
     this.scene.fog = new THREE.Fog('#060911', 14, 34)
 

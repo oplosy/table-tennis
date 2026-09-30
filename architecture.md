@@ -123,7 +123,7 @@ konumlanma hatası, güç aralığı ve isabetle ayrılır. Denge
 - **Görsel dünya (`game/world/`):** salon, bariyerler, tribünler, WTT yayın
   tarzı ışık düzeni (tepeden tek gölgeli key, kort yıkaması, rim), regülasyon
   masa ve file, prosedürel raketler, top izi ve temas gölgesi. Dokular çalışma
-  anında canvas'a çizilir; tek ikili asset `public/env/` altındaki HDRI'dir.
+  anında canvas'a çizilir; tek ikili asset `src/assets/env/` altındaki HDRI'dir (Vite hash'li dosya adıyla paketler).
 - **Render (`game/render/`):** `profile.ts` kalite katmanını (piksel oranı,
   gölge, MSAA/FXAA, AO, bloom, grading) tanımlar. `environment.ts` HDRI'yi
   PMREM'e çevirir; yüklenene kadar ve hata durumunda `RoomEnvironment` kullanır.
