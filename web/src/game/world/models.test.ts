@@ -119,6 +119,25 @@ describe('arena.glb', () => {
     expect(max[2]).toBeGreaterThan(COURT_HALF_Z)
   })
 
+  it('never stacks the hall floor under the court mat, where the two would flicker', () => {
+    const outer = boundsNode(arena, 'floor').getMesh()!.listPrimitives().find((p) => p.getMaterial()?.getName() === 'floor_outer')!
+    const position = outer.getAttribute('POSITION')!
+    const indices = outer.getIndices()!
+    const samples = [[0, 0], [2, 4], [-2, 4], [2, -4], [-2, -4], [3, 0], [0, 6]]
+    const side = (a: number[], b: number[], p: number[]) => (b[0] - a[0]) * (p[1] - a[1]) - (b[1] - a[1]) * (p[0] - a[0])
+    for (let i = 0; i < indices.getCount(); i += 3) {
+      const [a, b, c] = [0, 1, 2].map((k) => {
+        const v = position.getElement(indices.getScalar(i + k), [0, 0, 0])
+        return [v[0], v[2]]
+      })
+      for (const point of samples) {
+        const signs = [side(a, b, point), side(b, c, point), side(c, a, point)]
+        const inside = signs.every((v) => v > 0) || signs.every((v) => v < 0)
+        expect(inside, `hall floor covers the court at ${point}`).toBe(false)
+      }
+    }
+  })
+
   it('surrounds the court with barriers', () => {
     const { min, max } = boundsOf(arena, 'barriers')
     expect(max[1]).toBeGreaterThan(0.7)
