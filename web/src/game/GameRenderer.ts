@@ -62,7 +62,7 @@ export class GameRenderer {
     this.scene.background = new THREE.Color('#060911')
     this.scene.fog = new THREE.Fog('#060911', 14, 34)
 
-    this.scene.add(createArena(quality), createLights(quality), createTable())
+    this.scene.add(createArena(quality), createLights(this.profile), createTable())
     this.net = createNet()
     this.paddles = { home: new PaddleView('home', HOME_COLORS), away: new PaddleView('away', AWAY_COLORS) }
     this.scene.add(this.net.group, this.paddles.home.root, this.paddles.away.root, this.ball.group, this.effects.group)

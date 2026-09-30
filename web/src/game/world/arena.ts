@@ -1,4 +1,6 @@
 import * as THREE from 'three'
+import { TABLE_HEIGHT } from '@rally/core'
+import type { RenderProfile } from '../render/profile'
 import { barrierTexture, floorTexture, hallTexture } from './textures'
 
 const COURT_HALF_X = 3.6
@@ -78,7 +80,8 @@ export function createArena(quality: 'low' | 'high') {
   arena.add(hall)
 
   // Ceiling light bars: emissive strips that also show up in reflections.
-  const lightBar = new THREE.MeshBasicMaterial({ color: '#fff6e6' })
+  // Above 1.0 in linear HDR so the bloom threshold catches the lamps and little else.
+  const lightBar = new THREE.MeshBasicMaterial({ color: new THREE.Color('#f3f6ff').multiplyScalar(6) })
   for (const sx of [-1.6, 0, 1.6]) {
     for (const sz of [-4, 0, 4]) {
       const bar = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.05, 2.2), lightBar)
@@ -89,32 +92,44 @@ export function createArena(quality: 'low' | 'high') {
   return arena
 }
 
-/** Lighting rig tuned around the table. */
-export function createLights(quality: 'low' | 'high') {
+/**
+ * Broadcast rig: the court is lit like a stage and the stands fall into
+ * darkness. Ambient light comes from the HDRI; only the key casts shadows.
+ */
+export function createLights(profile: RenderProfile) {
   const group = new THREE.Group()
-  group.add(new THREE.HemisphereLight('#c6d6ff', '#2a1712', 0.55))
+  group.name = 'lights'
+  group.add(new THREE.HemisphereLight('#b9c8ff', '#1a1210', 0.12))
 
-  const key = new THREE.DirectionalLight('#fff3e2', 2.1)
-  key.position.set(1.8, 7.5, 2.4)
-  key.target.position.set(0, 0.7, 0)
+  // Nearly overhead so ball and paddle shadows fall short and straight down.
+  const key = new THREE.DirectionalLight('#f3f6ff', 1.7)
+  key.position.set(0.6, 8, 0.9)
+  key.target.position.set(0, TABLE_HEIGHT, 0)
   key.castShadow = true
-  key.shadow.mapSize.set(quality === 'high' ? 2048 : 1024, quality === 'high' ? 2048 : 1024)
+  key.shadow.mapSize.set(profile.shadowMapSize, profile.shadowMapSize)
   const cam = key.shadow.camera
-  cam.left = -3.4; cam.right = 3.4; cam.top = 4.2; cam.bottom = -4.2; cam.near = 1; cam.far = 16
+  cam.left = -3.4; cam.right = 3.4; cam.top = 4.2; cam.bottom = -4.2; cam.near = 1; cam.far = 12
   key.shadow.bias = -0.0004
   key.shadow.normalBias = 0.015
   key.shadow.radius = 3
   group.add(key, key.target)
 
-  const fill = new THREE.DirectionalLight('#9fb8ff', 0.45)
-  fill.position.set(-4, 3, -2)
-  group.add(fill)
+  // Court wash: four pools that fade out before the barriers.
+  for (const sx of [-1.5, 1.5]) {
+    for (const sz of [-3, 3]) {
+      const wash = new THREE.SpotLight('#eef2ff', 9, 14, 0.55, 0.9, 1.6)
+      wash.position.set(sx, 6.5, sz)
+      wash.target.position.set(sx * 0.4, 0, sz * 0.6)
+      group.add(wash, wash.target)
+    }
+  }
 
-  for (const sz of [-3.2, 3.2]) {
-    const spot = new THREE.SpotLight('#fff1dc', 32, 14, 0.62, 0.7, 1.6)
-    spot.position.set(0, 7, sz)
-    spot.target.position.set(0, 0.76, sz * 0.25)
-    group.add(spot, spot.target)
+  // Rim: weak cool back light from each end separates paddles and ball from the dark stands.
+  for (const sz of [-1, 1]) {
+    const rim = new THREE.DirectionalLight('#9fc0ff', 0.35)
+    rim.position.set(0, 2.2, sz * 9)
+    rim.target.position.set(0, TABLE_HEIGHT + 0.15, 0)
+    group.add(rim, rim.target)
   }
   return group
 }
