@@ -41,7 +41,10 @@ def prepare():
     scene.cycles.device = "CPU"
     scene.cycles.samples = SAMPLES
     scene.cycles.use_denoising = True
-    for obj in bpy.data.collections["Paddle"].objects:  # held by a player, never part of the hall
+    for name in ("Table", "Arena"):  # another script may have hidden them; the bake needs both
+        for obj in bpy.data.collections[name].all_objects:
+            obj.hide_render = False
+    for obj in bpy.data.collections["Paddle"].all_objects:  # held by a player, never part of the hall
         obj.hide_render = True
     for obj in bpy.data.collections["Lights"].objects:
         if obj.name.startswith("preview_"):  # viewport stand-ins for emissive meshes
