@@ -5,7 +5,7 @@ import arenaGlb from '../../assets/models/arena.glb?inline'
 import paddleGlb from '../../assets/models/paddle.glb?inline'
 import tableGlb from '../../assets/models/table.glb?inline'
 import { boundsOf, inlineBytes, materialNames, nodeNamed as boundsNode, readGlb } from '../../test/glb'
-import { COURT_HALF_X, COURT_HALF_Z } from './arena'
+import { COURT_HALF_X, COURT_HALF_Z, UMPIRE_BOARD } from './arena'
 
 /** The models must agree with the simulation to the millimetre, or the ball would bounce on air. */
 const MM = 0.001
@@ -173,12 +173,50 @@ describe('arena.glb', () => {
 
   it('carries baked light: a lightmap UV set on big surfaces, vertex colours on cluttered ones', () => {
     const attributes = (name: string) => boundsNode(arena, name).getMesh()!.listPrimitives().map((p) => p.listSemantics())
-    for (const name of ['floor', 'barriers', 'hall', 'backwall_home', 'backwall_away', 'umpire_desk']) {
+    for (const name of ['floor', 'barriers', 'hall', 'backwall_home', 'backwall_away', 'umpire_desk', 'towel_box_home', 'towel_box_away']) {
       for (const semantics of attributes(name)) expect(semantics, name).toContain('TEXCOORD_1')
     }
     for (const name of ['stands', 'rig', 'lamps', 'backstage_home', 'backstage_away']) {
       for (const semantics of attributes(name)) expect(semantics, name).toContain('COLOR_0')
     }
+  })
+
+  it('leaves nothing but the screens without baked light, or it would show flat', () => {
+    for (const node of arena.getRoot().listNodes()) {
+      for (const primitive of node.getMesh()?.listPrimitives() ?? []) {
+        const material = primitive.getMaterial()?.getName()
+        if (material === 'screen') continue
+        const semantics = primitive.listSemantics()
+        expect(semantics.includes('TEXCOORD_1') || semantics.includes('COLOR_0'), `${node.getName()} / ${material}`).toBe(true)
+      }
+    }
+  })
+
+  it('gives every surface the game paints a first UV set', () => {
+    const painted = ['court', 'barrier_face_A', 'barrier_face_B', 'barrier_face_C', 'backdrop_logo', 'screen']
+    const seen = new Set<string>()
+    for (const mesh of arena.getRoot().listMeshes()) {
+      for (const primitive of mesh.listPrimitives()) {
+        const material = primitive.getMaterial()?.getName() ?? ''
+        if (!painted.includes(material)) continue
+        seen.add(material)
+        expect(primitive.listSemantics(), `${mesh.getName()} / ${material}`).toContain('TEXCOORD_0')
+      }
+    }
+    expect([...seen].sort()).toEqual([...painted].sort())
+  })
+
+  it('has the umpire\'s flip board where the game hangs the score plates', () => {
+    const { min, max } = boundsOf(arena, 'umpire_desk')
+    const plateHalfWidth = 0.12
+    const plateHalfHeight = 0.09
+    expect(UMPIRE_BOARD.x).toBeGreaterThan(COURT_HALF_X / 2)
+    expect(UMPIRE_BOARD.x).toBeGreaterThanOrEqual(min[0] - 0.01)
+    expect(UMPIRE_BOARD.x).toBeLessThanOrEqual(max[0])
+    expect(UMPIRE_BOARD.y + plateHalfHeight).toBeLessThanOrEqual(max[1] + MM)
+    expect(UMPIRE_BOARD.y - plateHalfHeight).toBeGreaterThan(TABLE_HEIGHT - 0.1)
+    expect(UMPIRE_BOARD.z + plateHalfWidth).toBeLessThanOrEqual(max[2] + MM)
+    expect(-UMPIRE_BOARD.z - plateHalfWidth).toBeGreaterThanOrEqual(min[2] - MM)
   })
 
   it('faces a screen towards the court from behind each end', () => {
