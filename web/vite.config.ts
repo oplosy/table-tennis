@@ -16,7 +16,7 @@ export default defineConfig({
     target: 'es2022',
     chunkSizeWarningLimit: 900,
     rollupOptions: {
-      output: { manualChunks: { three: ['three'], react: ['react', 'react-dom', 'react-router-dom'] } },
+      output: { manualChunks: { three: ['three'], postfx: ['postprocessing', 'n8ao'], react: ['react', 'react-dom', 'react-router-dom'] } },
     },
   },
   test: {

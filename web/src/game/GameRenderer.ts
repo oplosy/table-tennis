@@ -1,6 +1,8 @@
 import * as THREE from 'three'
 import { HALF_LENGTH, TABLE_HEIGHT, sideSign, type MatchEvent, type Side, type Vec3 } from '@rally/core'
 import { loadEnvironment, pmremBaker, type EnvironmentHandle } from './render/environment'
+import { createPostFx, type PostFx } from './render/postfx'
+import { renderProfile, type RenderProfile } from './render/profile'
 import { createArena, createLights } from './world/arena'
 import { BallView } from './world/ball'
 import { Effects } from './world/effects'
@@ -27,6 +29,8 @@ export class GameRenderer {
   private readonly net: NetView
   private readonly effects = new Effects()
   private readonly environment: EnvironmentHandle
+  readonly postfx: PostFx
+  private readonly profile: RenderProfile
   private readonly raycaster = new THREE.Raycaster()
   private readonly plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -(TABLE_HEIGHT + 0.1))
   private session: GameSession | null = null
@@ -41,16 +45,18 @@ export class GameRenderer {
   private resizeObserver: ResizeObserver
   private eventListeners = new Set<(events: MatchEvent[]) => void>()
   private touchMode = false
+  private drawable = false
 
   constructor(canvas: HTMLCanvasElement, quality: Quality) {
     this.canvas = canvas
-    this.renderer = new THREE.WebGLRenderer({ canvas, antialias: quality === 'high', powerPreference: 'high-performance' })
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, quality === 'high' ? 2 : 1.25))
+    this.profile = renderProfile(quality)
+    // Anti-aliasing and tone mapping live in the post chain (render/postfx.ts).
+    this.renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance' })
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, this.profile.pixelRatioCap))
     this.renderer.outputColorSpace = THREE.SRGBColorSpace
-    this.renderer.toneMapping = THREE.ACESFilmicToneMapping
-    this.renderer.toneMappingExposure = 1.05
+    this.renderer.toneMapping = THREE.NoToneMapping
     this.renderer.shadowMap.enabled = true
-    this.renderer.shadowMap.type = quality === 'high' ? THREE.PCFSoftShadowMap : THREE.PCFShadowMap
+    this.renderer.shadowMap.type = this.profile.softShadows ? THREE.PCFSoftShadowMap : THREE.PCFShadowMap
 
     this.environment = loadEnvironment(this.scene, ENVIRONMENT_URL, pmremBaker(this.renderer))
     this.scene.background = new THREE.Color('#060911')
@@ -60,6 +66,7 @@ export class GameRenderer {
     this.net = createNet()
     this.paddles = { home: new PaddleView('home', HOME_COLORS), away: new PaddleView('away', AWAY_COLORS) }
     this.scene.add(this.net.group, this.paddles.home.root, this.paddles.away.root, this.ball.group, this.effects.group)
+    this.postfx = createPostFx(this.renderer, this.scene, this.camera, this.profile)
 
     canvas.addEventListener('pointermove', this.onPointerMove)
     canvas.addEventListener('pointerdown', this.onPointerDown)
@@ -110,6 +117,7 @@ export class GameRenderer {
         }
       }
     })
+    this.postfx.dispose()
     this.environment.dispose()
     this.renderer.dispose()
   }
@@ -147,7 +155,7 @@ export class GameRenderer {
     }
     this.net.update(dt)
     this.effects.update(dt)
-    this.renderer.render(this.scene, this.camera)
+    if (this.drawable) this.postfx.render(dt)
   }
 
   private present(events: MatchEvent[]) {
@@ -207,9 +215,13 @@ export class GameRenderer {
   }
 
   private resize() {
-    const width = this.canvas.clientWidth || 1
-    const height = this.canvas.clientHeight || 1
-    this.renderer.setSize(width, height, false)
+    const width = this.canvas.clientWidth
+    const height = this.canvas.clientHeight
+    // A canvas without layout (hidden page, collapsed pane) has nothing to draw
+    // into, and the post chain's half-resolution buffers cannot be zero-sized.
+    this.drawable = width > 0 && height > 0
+    if (!this.drawable) return
+    this.postfx.setSize(width, height)
     this.camera.aspect = width / height
     this.camera.updateProjectionMatrix()
   }
