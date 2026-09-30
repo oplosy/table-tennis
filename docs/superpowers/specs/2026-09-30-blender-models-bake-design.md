@@ -1,7 +1,7 @@
 # Faz 2 — Blender modelleri ve ışık bake'i
 
 - **Tarih:** 2026-09-30
-- **Durum:** Onaylandı (tasarım), uygulama planı bekliyor
+- **Durum:** Uygulandı (bkz. "Uygulama sonucu"). Kullanıcının isteğiyle plan belgesi yazılmadan uygulandı.
 - **Dal:** `feat/blender-models` (`feat/real-3d-table-tennis` üzerinden)
 - **Önceki faz:** `2026-09-29-lighting-postfx-hdri-design.md` (uygulandı)
 
@@ -187,3 +187,42 @@ Kapılar: `npm test`, `npm run typecheck`, `npm run build`.
 3. Model + doku toplamı ≤ 6 MB.
 4. Kare süresi Faz 1'in son halinden kötü değil.
 5. Asset'ler yüklenemediğinde oyun yordamsal modellerle oynanabilir kalıyor.
+
+## Uygulama sonucu (2026-09-30)
+
+Tasarımdan sapmalar:
+
+- **Salon için renk atlası yok.** Yüzeyler düz malzeme rengi kullanır; kort
+  zemini, bariyer yazıları, logo panelleri ve ekranlar oyunun canvas
+  dokularıyla boyanır. Zenginlik lightmap'ten gelir.
+- **İki tür bake.** Büyük yüzeyler (zemin, bariyerler, duvarlar, sahne duvarı,
+  hakem masası) 2k lightmap'te; koltuklar, kafes kirişler ve spotlar gibi çok
+  parçalı nesneler köşe noktası renklerinde. Binlerce küçük parça lightmap'in
+  çoğunu boşa harcardı.
+- **Masa AO'su doku değil, köşe noktası rengi.** Rakete AO bake edilmedi
+  (dışbükey bir nesne, kazanç yok). Masa ve rakette doku yok; düz renkli
+  malzemeler.
+- **Sıkıştırma Blender'da.** 5.2'nin dışa aktarıcısında meshopt yerleşik;
+  `gltf-transform` komut satırı aracı eklenmedi.
+- **Ek düğümler:** `net_clamp_L/R`, `hall`, `rig`, `umpire_desk`,
+  `towel_box_home/away`, `backstage_home/away`, `backwall_home/away`,
+  `screen_home/away`.
+- **Bariyerler** kullanıcı geri bildirimiyle yeniden modellendi: dolgulu gövde,
+  yuvarlak üst kenar, gömülü reklam yüzü, kauçuk taban, köşe parçaları.
+- **Uç alanlar** kullanıcı geri bildirimiyle eklendi: sponsor duvarı, LED
+  ekran, spot kuleleri, yayın kamerası.
+
+Ölçümler (Intel UHD tümleşik GPU, 1280x720, 300 kare):
+
+| | Faz 1 sonu | Faz 2 sonu |
+|---|---|---|
+| Zincir kapalı | 6,6 ms | 4,4 ms |
+| High, AO'suz | 15,5 ms | 10,2 ms |
+| High, AO'lu | 18,7 ms | 15,0 ms |
+
+Boyut: `arena.glb` 1,03 MB, `arena_lightmap.webp` 0,48 MB, `table.glb`
+0,18 MB, `paddle.glb` 0,04 MB; toplam 1,73 MB (bütçe 6 MB). Ortam haritası
+1,0 MB (öncekinin yerine, 1,7 MB'tan).
+
+Yapılmayanlar: ekranlarda canlı skor (şimdilik sabit görsel), hakem masasındaki
+skor tabelasının içeriği, doku çalışması (zemin, ahşap, lastik pürüzü).
