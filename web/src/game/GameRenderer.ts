@@ -1,6 +1,6 @@
 import * as THREE from 'three'
-import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js'
 import { HALF_LENGTH, TABLE_HEIGHT, sideSign, type MatchEvent, type Side, type Vec3 } from '@rally/core'
+import { loadEnvironment, pmremBaker, type EnvironmentHandle } from './render/environment'
 import { createArena, createLights } from './world/arena'
 import { BallView } from './world/ball'
 import { Effects } from './world/effects'
@@ -11,6 +11,7 @@ import type { Quality } from '../state/settings'
 
 const HOME_COLORS = { forehand: '#d8262f', backhand: '#15171c', handle: '#b88a52', accent: '#ff6a3d' }
 const AWAY_COLORS = { forehand: '#d8262f', backhand: '#15171c', handle: '#3c4a63', accent: '#39c2ff' }
+const ENVIRONMENT_URL = `${import.meta.env.BASE_URL}env/arena_1k.hdr`
 
 /**
  * Owns the WebGL renderer, the scene and the camera. Each animation frame it
@@ -25,6 +26,7 @@ export class GameRenderer {
   private readonly paddles: Record<Side, PaddleView>
   private readonly net: NetView
   private readonly effects = new Effects()
+  private readonly environment: EnvironmentHandle
   private readonly raycaster = new THREE.Raycaster()
   private readonly plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -(TABLE_HEIGHT + 0.1))
   private session: GameSession | null = null
@@ -50,10 +52,7 @@ export class GameRenderer {
     this.renderer.shadowMap.enabled = true
     this.renderer.shadowMap.type = quality === 'high' ? THREE.PCFSoftShadowMap : THREE.PCFShadowMap
 
-    const pmrem = new THREE.PMREMGenerator(this.renderer)
-    this.scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture
-    this.scene.environmentIntensity = 0.3
-    pmrem.dispose()
+    this.environment = loadEnvironment(this.scene, ENVIRONMENT_URL, pmremBaker(this.renderer))
     this.scene.background = new THREE.Color('#060911')
     this.scene.fog = new THREE.Fog('#060911', 14, 34)
 
@@ -111,6 +110,7 @@ export class GameRenderer {
         }
       }
     })
+    this.environment.dispose()
     this.renderer.dispose()
   }
 
