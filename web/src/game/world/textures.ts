@@ -103,6 +103,30 @@ export function hallTexture() {
   return finish(element)
 }
 
+/**
+ * Pale wood grain running along the texture's height. Kept near white so it
+ * can be multiplied with any wood or handle colour.
+ */
+export function woodTexture() {
+  const size = 256
+  const { element, context } = canvas(size, size)
+  context.fillStyle = '#f4ecdc'
+  context.fillRect(0, 0, size, size)
+  let seed = 11
+  const random = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647 }
+  for (let i = 0; i < 90; i += 1) {
+    const x = random() * size
+    const drift = (random() - 0.5) * 10
+    context.strokeStyle = `rgba(${110 + random() * 40}, ${80 + random() * 30}, ${45 + random() * 20}, ${0.12 + random() * 0.3})`
+    context.lineWidth = 0.6 + random() * 1.8
+    context.beginPath()
+    context.moveTo(x, 0)
+    context.bezierCurveTo(x + drift, size / 3, x - drift, (size * 2) / 3, x, size)
+    context.stroke()
+  }
+  return finish(element, { repeat: [1, 1] })
+}
+
 /** Pimpled rubber normal-ish detail used as a roughness map on paddles. */
 export function rubberTexture() {
   const { element, context } = canvas(128, 128)

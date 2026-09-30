@@ -1,6 +1,6 @@
 import * as THREE from 'three'
 import { sideSign, type PaddlePose, type Side, type Vec3 } from '@rally/core'
-import { radialTexture, rubberTexture } from './textures'
+import { radialTexture, rubberTexture, woodTexture } from './textures'
 
 const BLADE_RX = 0.078
 const BLADE_RY = 0.082
@@ -98,6 +98,9 @@ export class PaddleView {
     const tint: Record<string, string> = {
       rubber_forehand: this.colors.forehand, rubber_backhand: this.colors.backhand, handle: this.colors.handle, accent: this.colors.accent,
     }
+    // Painted detail the model does not carry: pimples on the rubbers, grain in the wood.
+    const pimples = rubberTexture()
+    const grain = woodTexture()
     const copy = model.clone(true)
     const materials = new Map<THREE.Material, THREE.MeshStandardMaterial>()
     copy.traverse((object) => {
@@ -108,6 +111,8 @@ export class PaddleView {
       if (!material) {
         material = source.clone()
         if (tint[source.name]) material.color.set(tint[source.name])
+        if (source.name.startsWith('rubber_')) material.roughnessMap = pimples
+        if (source.name === 'wood' || source.name === 'handle') material.map = grain
         materials.set(source, material)
       }
       object.material = material
