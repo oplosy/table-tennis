@@ -130,7 +130,9 @@ konumlanma hatası, güç aralığı ve isabetle ayrılır. Denge
     gibi çok parçalı nesneler ışığı köşe noktası renklerinde taşır. Gerçek
     zamanlı ışıkların salona maliyeti yoktur.
   - **Gölgeler:** masanın zemindeki gölgesi lightmap'tedir; top ve raketlerin
-    gölgesini kortun üstündeki şeffaf bir gölge yakalayıcı gösterir. Salon
+    gölgesini kortun üstündeki şeffaf bir gölge yakalayıcı gösterir. Yakalayıcı,
+    masanın ana ışığa göre zemine düşen izdüşümü kadar deliktir; yoksa top ve
+    raket gölgeleri masanın içinden geçip altındaki zemine düşerdi. Salon
     modeli yüklenemezse masa kendi gölgesini gerçek zamanlı atar.
   - **Skor:** `scoreboard.ts` canlı skoru uç ekranlara ve hakem tabelasına
     çizer; adları sayfalar `stage.setNames` ile bildirir. Maç dışında (menüler,
@@ -141,7 +143,9 @@ konumlanma hatası, güç aralığı ve isabetle ayrılır. Denge
 - **Asset hattı (`tools/blender/`):** kaynak `rally_assets.blend` (elle
   modellenir). `export.py` her koleksiyonu meshopt sıkıştırmalı GLB'ye yazar,
   `bake.py` salon ışığını ve masa AO'sunu bake eder, `render_env.py` salonun
-  360° ortam haritasını çıkarır. `models.test.ts` GLB'leri `packages/core`
+  360° ortam haritasını çıkarır. Deneme ayarlarıyla (`RALLY_BAKE_SIZE`,
+  `RALLY_BAKE_SAMPLES`, `RALLY_ENV_SAMPLES`) çalıştırılınca çıktı geçici
+  klasöre gider; oyunun dosyaları ve `.blend` değişmez. `models.test.ts` GLB'leri `packages/core`
   ölçüleriyle (±1 mm), ad sözleşmesiyle ve 6 MB bütçeyle karşılaştırır.
 - **Render (`game/render/`):** `profile.ts` kalite katmanını (piksel oranı,
   gölge, MSAA/FXAA, AO, bloom, grading) tanımlar. `environment.ts` HDRI'yi
