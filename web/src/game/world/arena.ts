@@ -1,5 +1,5 @@
 import * as THREE from 'three'
-import { SIDES, TABLE_HEIGHT, sideSign } from '@rally/core'
+import { HALF_LENGTH, HALF_WIDTH, SIDES, TABLE_HEIGHT, sideSign } from '@rally/core'
 import type { RenderProfile } from '../render/profile'
 import type { Scoreboard } from './scoreboard'
 import { barrierTexture, floorTexture, hallTexture } from './textures'
@@ -98,7 +98,9 @@ export function createArena(quality: 'low' | 'high') {
 const BAKED_LIGHT = 1.9
 const LAMP_GLOW = 6
 /** Where the umpire's flip board stands in the arena model (metres). */
-const UMPIRE_BOARD = { x: 2.592, y: 0.915, z: 0.22 }
+export const UMPIRE_BOARD = { x: 2.592, y: 0.915, z: 0.22 }
+/** Nearly overhead so ball and paddle shadows fall short and straight down. */
+const KEY_LIGHT = { x: 0.6, y: 8, z: 0.9 }
 const BARRIER_LABELS: Record<string, [string, string]> = {
   barrier_face_A: ['RALLY', 'TABLE TENNIS'], barrier_face_B: ['RALLY', 'OPEN 2026'], barrier_face_C: ['RALLY', 'PLAY ONLINE'], backdrop_logo: ['RALLY', 'OPEN 2026'],
 }
@@ -107,6 +109,26 @@ const BARRIER_LABELS: Record<string, [string, string]> = {
 function forGltf(texture: THREE.Texture) {
   texture.flipY = false
   return texture
+}
+
+/**
+ * The court, minus the patch the table keeps the key light off. The table
+ * casts no real-time shadow (its own is baked), so without the hole the ball
+ * and the paddles would throw shadows onto the floor straight through it.
+ */
+function catcherGeometry() {
+  // Where the table top's outline lands on the floor, following the key light.
+  const fall = TABLE_HEIGHT / (KEY_LIGHT.y - TABLE_HEIGHT)
+  const dx = -KEY_LIGHT.x * fall
+  const dz = -KEY_LIGHT.z * fall
+  // Drawn in the XY plane and laid flat by the mesh's rotation, which turns +y into -z.
+  const rectangle = <T extends THREE.Path>(path: T, x0: number, x1: number, z0: number, z1: number) => {
+    path.moveTo(x0, -z0); path.lineTo(x1, -z0); path.lineTo(x1, -z1); path.lineTo(x0, -z1); path.closePath()
+    return path
+  }
+  const court = rectangle(new THREE.Shape(), -COURT_HALF_X, COURT_HALF_X, -COURT_HALF_Z, COURT_HALF_Z)
+  court.holes.push(rectangle(new THREE.Path(), dx - HALF_WIDTH, dx + HALF_WIDTH, dz - HALF_LENGTH, dz + HALF_LENGTH))
+  return new THREE.ShapeGeometry(court)
 }
 
 /**
@@ -173,7 +195,7 @@ export function adoptArenaModel(arena: THREE.Group, model: THREE.Object3D, light
   // The table's shadow is in the lightmap; this only catches the ball and the paddles.
   // It lies millimetres above the mat, so it is pulled forward in depth instead of fighting it.
   const catcher = new THREE.Mesh(
-    new THREE.PlaneGeometry(COURT_HALF_X * 2, COURT_HALF_Z * 2),
+    catcherGeometry(),
     new THREE.ShadowMaterial({ opacity: 0.4, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }),
   )
   catcher.name = 'shadow_catcher'
@@ -201,9 +223,8 @@ export function createLights(profile: RenderProfile) {
   group.name = 'lights'
   group.add(new THREE.HemisphereLight('#b9c8ff', '#1a1210', 0.12))
 
-  // Nearly overhead so ball and paddle shadows fall short and straight down.
   const key = new THREE.DirectionalLight('#f3f6ff', 1.7)
-  key.position.set(0.6, 8, 0.9)
+  key.position.set(KEY_LIGHT.x, KEY_LIGHT.y, KEY_LIGHT.z)
   key.target.position.set(0, TABLE_HEIGHT, 0)
   key.castShadow = true
   key.shadow.mapSize.set(profile.shadowMapSize, profile.shadowMapSize)

@@ -1,5 +1,6 @@
 import * as THREE from 'three'
 import { describe, expect, it, vi } from 'vitest'
+import { HALF_LENGTH, HALF_WIDTH } from '@rally/core'
 import { adoptArenaModel } from './arena'
 import type { Scoreboard } from './scoreboard'
 import { adoptTableModel, castTableShadows, type NetView } from './table'
@@ -134,6 +135,33 @@ describe('adoptArenaModel', () => {
     expect(material).toBeInstanceOf(THREE.ShadowMaterial)
     expect(material.depthWrite).toBe(false)
     expect(material.polygonOffset).toBe(true)
+  })
+
+  it('leaves the floor under the table to the baked shadow', () => {
+    const arena = new THREE.Group()
+    adoptArenaModel(arena, arenaModel().model, new THREE.Texture(), board())
+    arena.updateMatrixWorld(true)
+    const catcher = arena.getObjectByName('shadow_catcher') as THREE.Mesh
+    const down = new THREE.Vector3(0, -1, 0)
+    const caught = (x: number, z: number) => new THREE.Raycaster(new THREE.Vector3(x, 1, z), down).intersectObject(catcher).length > 0
+    expect(caught(0, 0)).toBe(false)
+    expect(caught(2, 0)).toBe(true)
+    expect(caught(0, 3)).toBe(true)
+    expect(caught(-3.5, -6.7)).toBe(true)
+    // The key light leans, so the table's shadow is not straight below it.
+    expect(caught(HALF_WIDTH - 0.03, 0)).toBe(true)
+    expect(caught(-HALF_WIDTH - 0.03, 0)).toBe(false)
+    expect(caught(0, HALF_LENGTH - 0.04)).toBe(true)
+    expect(caught(0, -HALF_LENGTH - 0.04)).toBe(false)
+  })
+
+  it('scales lightmapped and vertex-lit surfaces by the same amount', () => {
+    const { model, parts } = arenaModel()
+    adoptArenaModel(new THREE.Group(), model, new THREE.Texture(), board())
+    const source = new THREE.Color('#336699')
+    // MeshBasicMaterial divides lightmaps by pi; vertex colours are multiplied as they are.
+    expect(basic(parts.barrier).lightMapIntensity / Math.PI).toBeCloseTo(basic(parts.stands).color.r / source.r, 5)
+    expect(basic(parts.barrier).color.r).toBeCloseTo(source.r, 5)
   })
 })
 
