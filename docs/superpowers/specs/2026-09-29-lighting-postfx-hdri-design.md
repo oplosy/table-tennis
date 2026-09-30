@@ -1,7 +1,7 @@
 # Faz 1 — Işık, post-processing ve HDRI
 
 - **Tarih:** 2026-09-29
-- **Durum:** Onaylandı (tasarım), uygulama planı bekliyor
+- **Durum:** Uygulandı (bkz. "Uygulama sonucu")
 - **Dal:** `feat/visual-lighting-postfx` (`feat/real-3d-table-tennis` üzerinden)
 
 ## Bağlam
@@ -58,8 +58,10 @@ Yeni klasör `web/src/game/render/`:
   `antialias: false` (AA composer'da).
 - Renderer ayarları (piksel oranı, gölge tipi) `renderProfile`'dan okunur.
 
-Asset yeri: `web/public/env/arena_1k.hdr` (Poly Haven `dancing_hall`, 1k, 1.7 MB) ve kaynak + CC0 lisansını
-yazan `web/public/env/README.md`. Faz 2'de Blender'dan render edilen kendi
+Asset yeri: `web/src/assets/env/arena_1k.hdr` (`?url` ile içe aktarılır; böylece
+`/assets/` altında hash'li adla, kalıcı önbellek başlığıyla servis edilir)
+— (Poly Haven `dancing_hall`, 1k, 1.7 MB) ve kaynak + CC0 lisansını
+yazan `README.md` aynı klasörde. Faz 2'de Blender'dan render edilen kendi
 salon env map'i aynı klasöre gelir ve `loadEnvironment` URL'si değişir.
 
 ## Işık düzeni
@@ -136,3 +138,16 @@ Kapılar: `npm test`, `npm run typecheck`, `npm run build` yeşil.
 `architecture.md` → İstemci bölümündeki "ikili asset yoktur" cümlesi ve görsel
 dünya açıklaması güncellenir; `render/` klasörü eklenir. `CHANGELOG.md`'ye
 kayıt düşülür.
+
+## Uygulama sonucu (2026-09-30)
+
+- Grading, kütüphanenin kontrast/doygunluk efektleri yerine sonucu sıfırda
+  sıkıştıran tek bir `GradingEffect` ile yapılır (negatif değerler renk uzayı
+  dönüşümünde NaN üretiyordu).
+- Ayarlanan değerler: key 1.7, kort yıkaması 9, rim 0.35, hemisphere 0.12,
+  ortam 0.15 (≈ 0.5 başlangıç değeri tribünleri fazla aydınlatıyordu).
+- N8AO + composer MSAA ×4 birlikte çalışıyor; SMAA yedeğine gerek kalmadı.
+- İlk açılışta dokunmatik cihazlar `low`, diğerleri `high` ile başlar.
+- Ölçüm (Intel UHD tümleşik GPU, 1280×720): `high` +12 ms/kare (N8AO ≈ 8.5 ms),
+  `low` +2.1 ms/kare. Başarı ölçütü 2 (`low` ≲ 1 ms) **karşılanmadı**; `high`
+  bu GPU'da 60 fps'in altında kalıyor. Ayrık GPU'da ölçülmedi.
