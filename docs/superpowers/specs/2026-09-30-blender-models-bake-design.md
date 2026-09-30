@@ -2,7 +2,7 @@
 
 - **Tarih:** 2026-09-30
 - **Durum:** Uygulandı (bkz. "Uygulama sonucu"). Kullanıcının isteğiyle plan belgesi yazılmadan uygulandı.
-- **Dal:** `feat/blender-models` (`feat/real-3d-table-tennis` üzerinden)
+- **Dal:** `feat/blender-models` (`feat/real-3d-table-tennis` dalına birleştirildi)
 - **Önceki faz:** `2026-09-29-lighting-postfx-hdri-design.md` (uygulandı)
 
 ## Bağlam
@@ -224,5 +224,6 @@ Boyut: `arena.glb` 1,03 MB, `arena_lightmap.webp` 0,48 MB, `table.glb`
 0,18 MB, `paddle.glb` 0,04 MB; toplam 1,73 MB (bütçe 6 MB). Ortam haritası
 1,0 MB (öncekinin yerine, 1,7 MB'tan).
 
-Yapılmayanlar: ekranlarda canlı skor (şimdilik sabit görsel), hakem masasındaki
-skor tabelasının içeriği, doku çalışması (zemin, ahşap, lastik pürüzü).
+Sonradan eklenenler: ekranlarda ve hakem tabelasında canlı skor
+(`world/scoreboard.ts`); rakette canvas'a çizilen lastik pürüzü ve ahşap damarı.
+Yapılmayanlar: zemin ve masa için doku çalışması.

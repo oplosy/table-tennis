@@ -130,7 +130,11 @@ konumlanma hatası, güç aralığı ve isabetle ayrılır. Denge
     gibi çok parçalı nesneler ışığı köşe noktası renklerinde taşır. Gerçek
     zamanlı ışıkların salona maliyeti yoktur.
   - **Gölgeler:** masanın zemindeki gölgesi lightmap'tedir; top ve raketlerin
-    gölgesini kortun üstündeki şeffaf bir gölge yakalayıcı gösterir.
+    gölgesini kortun üstündeki şeffaf bir gölge yakalayıcı gösterir. Salon
+    modeli yüklenemezse masa kendi gölgesini gerçek zamanlı atar.
+  - **Skor:** `scoreboard.ts` canlı skoru uç ekranlara ve hakem tabelasına
+    çizer; adları sayfalar `stage.setNames` ile bildirir. Maç dışında (menüler,
+    demo ralli) turnuva yazısı görünür.
   - **Masa ve raket ışıklıdır:** WTT yayın tarzı düzen (tepeden tek gölgeli
     key, kort yıkaması, rim) onları aydınlatır; masanın AO'su köşe noktası
     renklerindedir. Raket tek modeldir, oyuncuya göre kodda renklenir.
