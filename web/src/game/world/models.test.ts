@@ -4,7 +4,7 @@ import { HALF_LENGTH, HALF_WIDTH, NET_HALF_WIDTH, NET_TOP, PADDLE_MAX_DEPTH, PAD
 import arenaGlb from '../../assets/models/arena.glb?inline'
 import paddleGlb from '../../assets/models/paddle.glb?inline'
 import tableGlb from '../../assets/models/table.glb?inline'
-import { boundsOf, inlineBytes, materialNames, readGlb } from '../../test/glb'
+import { boundsOf, inlineBytes, materialNames, nodeNamed as boundsNode, readGlb } from '../../test/glb'
 import { COURT_HALF_X, COURT_HALF_Z } from './arena'
 
 /** The models must agree with the simulation to the millimetre, or the ball would bounce on air. */
@@ -47,6 +47,12 @@ describe('table.glb', () => {
 
   it('names the materials the game recolours and tunes', () => {
     expect(materialNames(table)).toEqual(expect.arrayContaining(['table_surface', 'table_lines', 'metal']))
+  })
+
+  it('carries baked ambient occlusion as vertex colours', () => {
+    for (const mesh of table.getRoot().listMeshes()) {
+      for (const primitive of mesh.listPrimitives()) expect(primitive.listSemantics(), mesh.getName()).toContain('COLOR_0')
+    }
   })
 
   it('is centred on the origin', () => {
@@ -144,6 +150,16 @@ describe('arena.glb', () => {
 
   it('names the surfaces the game textures itself', () => {
     expect(materialNames(arena)).toEqual(expect.arrayContaining(['court', 'barrier_face_A', 'barrier_face_B', 'barrier_face_C', 'lamp', 'screen', 'backdrop_logo']))
+  })
+
+  it('carries baked light: a lightmap UV set on big surfaces, vertex colours on cluttered ones', () => {
+    const attributes = (name: string) => boundsNode(arena, name).getMesh()!.listPrimitives().map((p) => p.listSemantics())
+    for (const name of ['floor', 'barriers', 'hall', 'backwall_home', 'backwall_away', 'umpire_desk']) {
+      for (const semantics of attributes(name)) expect(semantics, name).toContain('TEXCOORD_1')
+    }
+    for (const name of ['stands', 'rig', 'lamps', 'backstage_home', 'backstage_away']) {
+      for (const semantics of attributes(name)) expect(semantics, name).toContain('COLOR_0')
+    }
   })
 
   it('faces a screen towards the court from behind each end', () => {
