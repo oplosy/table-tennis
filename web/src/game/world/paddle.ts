@@ -36,6 +36,8 @@ export class PaddleView {
   private readonly grip = new THREE.Group()
   private readonly swingPivot = new THREE.Group()
   private readonly glow: THREE.Mesh
+  private readonly blade = new THREE.Group()
+  private readonly colors: PaddleColors
   private readonly side: Side
   private hand = 1
   private swingTime = 1
@@ -44,6 +46,7 @@ export class PaddleView {
 
   constructor(side: Side, colors: PaddleColors) {
     this.side = side
+    this.colors = colors
     const bump = rubberTexture()
     const forehand = new THREE.MeshStandardMaterial({ color: colors.forehand, roughness: 0.55, roughnessMap: bump })
     const backhand = new THREE.MeshStandardMaterial({ color: colors.backhand, roughness: 0.6, roughnessMap: bump })
@@ -51,7 +54,7 @@ export class PaddleView {
     const handle = new THREE.MeshStandardMaterial({ color: colors.handle, roughness: 0.5 })
     const accent = new THREE.MeshStandardMaterial({ color: colors.accent, roughness: 0.4, metalness: 0.2 })
 
-    const blade = new THREE.Group()
+    const blade = this.blade
     blade.add(slab(CORE, wood, 0))
     blade.add(slab(RUBBER, forehand, CORE / 2 + RUBBER / 2))
     blade.add(slab(RUBBER, backhand, -CORE / 2 - RUBBER / 2))
@@ -84,6 +87,32 @@ export class PaddleView {
     this.root.scale.setScalar(DISPLAY_SCALE)
     // Forehand rubber faces the net for both players.
     this.grip.rotation.y = side === 'home' ? Math.PI : 0
+  }
+
+  /** Swaps the procedural blade for the Blender model, in this player's colours. */
+  adopt(model: THREE.Object3D) {
+    for (const child of [...this.blade.children]) {
+      this.blade.remove(child)
+      if (child instanceof THREE.Mesh) { child.geometry.dispose(); (child.material as THREE.Material).dispose() }
+    }
+    const tint: Record<string, string> = {
+      rubber_forehand: this.colors.forehand, rubber_backhand: this.colors.backhand, handle: this.colors.handle, accent: this.colors.accent,
+    }
+    const copy = model.clone(true)
+    const materials = new Map<THREE.Material, THREE.MeshStandardMaterial>()
+    copy.traverse((object) => {
+      if (!(object instanceof THREE.Mesh)) return
+      object.castShadow = true
+      const source = object.material as THREE.MeshStandardMaterial
+      let material = materials.get(source)
+      if (!material) {
+        material = source.clone()
+        if (tint[source.name]) material.color.set(tint[source.name])
+        materials.set(source, material)
+      }
+      object.material = material
+    })
+    this.blade.add(copy)
   }
 
   swing(power: number) {

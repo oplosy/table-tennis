@@ -1,16 +1,21 @@
 import * as THREE from 'three'
 // Bundled as a hashed asset so the server can cache it forever.
 import environmentUrl from '../assets/env/arena_1k.hdr?url'
+import arenaUrl from '../assets/models/arena.glb?url'
+import lightmapUrl from '../assets/models/arena_lightmap.webp?url'
+import paddleUrl from '../assets/models/paddle.glb?url'
+import tableUrl from '../assets/models/table.glb?url'
 import { HALF_LENGTH, TABLE_HEIGHT, sideSign, type MatchEvent, type Side, type Vec3 } from '@rally/core'
 import { FrameBudget } from './render/budget'
 import { loadEnvironment, pmremBaker, type EnvironmentHandle } from './render/environment'
 import { createPostFx, type PostFx } from './render/postfx'
 import { renderProfile, type RenderProfile } from './render/profile'
-import { createArena, createLights } from './world/arena'
+import { adoptArenaModel, createArena, createLights } from './world/arena'
+import { gltfSource, loadModels, type ModelsHandle } from './world/assets'
 import { BallView } from './world/ball'
 import { Effects } from './world/effects'
 import { PaddleView } from './world/paddle'
-import { createNet, createTable, type NetView } from './world/table'
+import { adoptTableModel, createNet, createTable, type NetView } from './world/table'
 import type { GameSession } from './session/Session'
 import type { Quality } from '../state/settings'
 
@@ -31,6 +36,7 @@ export class GameRenderer {
   private readonly net: NetView
   private readonly effects = new Effects()
   private readonly environment: EnvironmentHandle
+  private readonly models: ModelsHandle
   readonly postfx: PostFx
   private readonly profile: RenderProfile
   private readonly raycaster = new THREE.Raycaster()
@@ -65,10 +71,18 @@ export class GameRenderer {
     this.scene.background = new THREE.Color('#060911')
     this.scene.fog = new THREE.Fog('#060911', 14, 34)
 
-    this.scene.add(createArena(quality), createLights(this.profile), createTable())
+    const arena = createArena(quality)
+    const table = createTable()
+    this.scene.add(arena, createLights(this.profile), table)
     this.net = createNet()
     this.paddles = { home: new PaddleView('home', HOME_COLORS), away: new PaddleView('away', AWAY_COLORS) }
     this.scene.add(this.net.group, this.paddles.home.root, this.paddles.away.root, this.ball.group, this.effects.group)
+    // The procedural world above is what shows until the Blender models arrive.
+    this.models = loadModels({ table: tableUrl, paddle: paddleUrl, arena: arenaUrl, lightmap: lightmapUrl }, gltfSource(), {
+      table: (model) => adoptTableModel(table, this.net, model),
+      paddle: (model) => { this.paddles.home.adopt(model); this.paddles.away.adopt(model) },
+      arena: (model, lightmap) => adoptArenaModel(arena, model, lightmap),
+    })
     this.postfx = createPostFx(this.renderer, this.scene, this.camera, this.profile)
 
     canvas.addEventListener('pointermove', this.onPointerMove)
@@ -120,6 +134,7 @@ export class GameRenderer {
         }
       }
     })
+    this.models.dispose()
     this.postfx.dispose()
     this.environment.dispose()
     this.renderer.dispose()

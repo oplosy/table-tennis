@@ -66,13 +66,30 @@ export function createTable() {
   return table
 }
 
-export interface NetView { group: THREE.Group; shake(strength: number): void; update(dt: number): void }
+/**
+ * Swaps the procedural table for the Blender model. It receives the ball's
+ * and paddles' shadows but casts none: its own shadow on the floor is baked.
+ */
+export function adoptTableModel(table: THREE.Group, net: NetView, model: THREE.Object3D) {
+  for (const child of [...table.children]) {
+    table.remove(child)
+    if (child instanceof THREE.Mesh) child.geometry.dispose()
+  }
+  model.traverse((object) => {
+    if (object instanceof THREE.Mesh) { object.receiveShadow = true; object.castShadow = false }
+  })
+  table.add(model)
+  net.hidePosts()
+}
+
+export interface NetView { group: THREE.Group; shake(strength: number): void; update(dt: number): void; hidePosts(): void }
 
 /** Posts, clamps, mesh and white top band. The mesh wobbles when the ball hits it. */
 export function createNet(): NetView {
   const group = new THREE.Group()
   group.name = 'net'
   const post = new THREE.MeshStandardMaterial({ color: '#15181d', metalness: 0.5, roughness: 0.35 })
+  const hardware: THREE.Mesh[] = []
   for (const sx of [1, -1]) {
     const upright = new THREE.Mesh(new THREE.CylinderGeometry(0.011, 0.011, NET_HEIGHT + 0.012, 12), post)
     upright.position.set(sx * NET_HALF_WIDTH, TABLE_HEIGHT + NET_HEIGHT / 2, 0)
@@ -80,6 +97,7 @@ export function createNet(): NetView {
     const arm = box(NET_HALF_WIDTH - HALF_WIDTH + 0.02, 0.02, 0.04, post, sx * (HALF_WIDTH + (NET_HALF_WIDTH - HALF_WIDTH) / 2), TABLE_HEIGHT + 0.01, 0)
     const clamp = box(0.05, 0.05, 0.06, post, sx * (HALF_WIDTH + 0.01), TABLE_HEIGHT - 0.02, 0)
     group.add(upright, arm, clamp)
+    hardware.push(upright, arm, clamp)
   }
   const meshHeight = NET_HEIGHT - 0.014
   const netMaterial = new THREE.MeshStandardMaterial({
@@ -97,6 +115,8 @@ export function createNet(): NetView {
   return {
     group,
     shake(strength) { energy = Math.min(1, energy + strength) },
+    // The table model brings its own posts and clamps; the cloth and band stay.
+    hidePosts() { for (const mesh of hardware) mesh.visible = false },
     update(dt) {
       if (energy <= 0.001) return
       time += dt

@@ -1,7 +1,7 @@
 import * as THREE from 'three'
 import { TABLE_HEIGHT } from '@rally/core'
 import type { RenderProfile } from '../render/profile'
-import { barrierTexture, floorTexture, hallTexture } from './textures'
+import { barrierTexture, floorTexture, hallTexture, screenTexture } from './textures'
 
 /** Half extents of the playing court, inside the surround barriers. */
 export const COURT_HALF_X = 3.6
@@ -91,6 +91,92 @@ export function createArena(quality: 'low' | 'high') {
     }
   }
   return arena
+}
+
+/** Scales the baked light against the real-time lights on the table; tuned by eye. */
+const BAKED_LIGHT = 1.9
+const LAMP_GLOW = 6
+const BARRIER_LABELS: Record<string, [string, string]> = {
+  barrier_face_A: ['RALLY', 'TABLE TENNIS'], barrier_face_B: ['RALLY', 'OPEN 2026'], barrier_face_C: ['RALLY', 'PLAY ONLINE'], backdrop_logo: ['RALLY', 'OPEN 2026'],
+}
+
+/** Canvas textures follow three's convention; glTF UVs run the other way up. */
+function forGltf(texture: THREE.Texture) {
+  texture.flipY = false
+  return texture
+}
+
+/**
+ * Replaces the procedural hall with the Blender model. Its lighting is baked,
+ * so every surface is unlit: big ones read a shared lightmap through their
+ * second UV set, cluttered ones carry the light in vertex colours. Real-time
+ * lights then cost nothing here; a transparent catcher on the court shows the
+ * shadows of the things that move.
+ */
+export function adoptArenaModel(arena: THREE.Group, model: THREE.Object3D, lightmap: THREE.Texture) {
+  lightmap.flipY = false
+  lightmap.colorSpace = THREE.SRGBColorSpace
+  lightmap.channel = 1
+
+  const unlit = new Map<string, THREE.MeshBasicMaterial>()
+  const convert = (source: THREE.MeshStandardMaterial, geometry: THREE.BufferGeometry) => {
+    const mode = geometry.hasAttribute('uv1') ? 'lightmap' : geometry.hasAttribute('color') ? 'vertex' : 'flat'
+    const key = `${source.name}:${mode}`
+    let material = unlit.get(key)
+    if (material) return material
+    if (source.name === 'lamp' || source.name === 'spot_lens') {
+      // Above 1.0 in linear HDR so the bloom threshold catches the lamps and little else.
+      material = new THREE.MeshBasicMaterial({ color: source.color.clone().multiplyScalar(LAMP_GLOW) })
+    } else if (source.name === 'screen') {
+      material = new THREE.MeshBasicMaterial({ map: forGltf(screenTexture()), color: new THREE.Color(1.5, 1.5, 1.5) })
+    } else {
+      material = new THREE.MeshBasicMaterial({ color: source.color.clone() })
+      if (source.name === 'court') { material.map = forGltf(floorTexture()); material.color.set('#ffffff') }
+      const label = BARRIER_LABELS[source.name]
+      if (label) { material.map = forGltf(barrierTexture(...label)); material.color.set('#ffffff') }
+      if (mode === 'lightmap') {
+        material.lightMap = lightmap
+        material.lightMapIntensity = BAKED_LIGHT * Math.PI // MeshBasicMaterial divides lightmaps by pi
+      } else if (mode === 'vertex') {
+        material.vertexColors = true
+        material.color.multiplyScalar(BAKED_LIGHT)
+      }
+    }
+    material.name = source.name
+    unlit.set(key, material)
+    return material
+  }
+
+  model.traverse((object) => {
+    if (!(object instanceof THREE.Mesh)) return
+    const source = object.material as THREE.MeshStandardMaterial
+    object.material = convert(source, object.geometry)
+    source.dispose()
+  })
+
+  for (const child of [...arena.children]) {
+    arena.remove(child)
+    child.traverse((object) => {
+      if (!(object instanceof THREE.Mesh)) return
+      object.geometry.dispose()
+      for (const material of Array.isArray(object.material) ? object.material : [object.material]) {
+        for (const value of Object.values(material)) if (value instanceof THREE.Texture) value.dispose()
+        material.dispose()
+      }
+    })
+  }
+
+  // The table's shadow is in the lightmap; this only catches the ball and the paddles.
+  // It lies millimetres above the mat, so it is pulled forward in depth instead of fighting it.
+  const catcher = new THREE.Mesh(
+    new THREE.PlaneGeometry(COURT_HALF_X * 2, COURT_HALF_Z * 2),
+    new THREE.ShadowMaterial({ opacity: 0.4, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }),
+  )
+  catcher.name = 'shadow_catcher'
+  catcher.rotation.x = -Math.PI / 2
+  catcher.position.y = 0.002
+  catcher.receiveShadow = true
+  arena.add(model, catcher)
 }
 
 /**
