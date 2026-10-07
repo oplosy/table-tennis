@@ -828,7 +828,7 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 ### Task 5: Verification and docs
 
 **Files:**
-- Modify: `architecture.md` (İstemci bölümü)
+- Modify: `architecture.md` (Client section)
 - Modify: `CHANGELOG.md`
 
 **Interfaces:**
@@ -856,19 +856,20 @@ Toggle Graphics High → Fast → High → Fast within ~2 s (HDRI still loading 
 
 - [ ] **Step 5: Update docs**
 
-`architecture.md`, İstemci bölümünde "Görsel dünya" maddesini şununla değiştir:
+In `architecture.md`, Client section, replace the "Visual world" bullet with:
 
 ```md
-- **Görsel dünya (`game/world/`):** salon, bariyerler, tribünler, WTT yayın
-  tarzı ışık düzeni (tepeden tek gölgeli key, kort yıkaması, rim), regülasyon
-  masa ve file, prosedürel raketler, top izi ve temas gölgesi. Dokular çalışma
-  anında canvas'a çizilir; tek ikili asset `public/env/` altındaki HDRI'dir.
-- **Render (`game/render/`):** `profile.ts` kalite katmanını (piksel oranı,
-  gölge, MSAA/FXAA, AO, bloom, grading) tanımlar. `environment.ts` HDRI'yi
-  PMREM'e çevirir; yüklenene kadar ve hata durumunda `RoomEnvironment` kullanır.
-  `postfx.ts` pmndrs `postprocessing` zinciridir: N8AO (yalnız High) → bloom +
-  AgX + grading tek geçişte → FXAA (yalnız Fast). Geliştirmede
-  `rally.renderer.postfx.enabled = false` zinciri kapatır.
+- **Visual world (`game/world/`):** the hall, barriers, stands, a WTT
+  broadcast-style light rig (a single shadow-casting overhead key, a court
+  wash, rims), a regulation table and net, procedural paddles, ball trail and
+  contact shadow. Textures are drawn on canvases at run time; the only binary
+  asset is the HDRI under `public/env/`.
+- **Rendering (`game/render/`):** `profile.ts` defines the quality tier (pixel
+  ratio, shadows, MSAA/FXAA, AO, bloom, grading). `environment.ts` turns the
+  HDRI into a PMREM; until it loads, and on failure, it uses `RoomEnvironment`.
+  `postfx.ts` is the pmndrs `postprocessing` chain: N8AO (High only) → bloom +
+  AgX + grading in a single pass → FXAA (Fast only). During development,
+  `rally.renderer.postfx.enabled = false` turns the chain off.
 ```
 
 `CHANGELOG.md`, add at the top below the title:
