@@ -1,7 +1,7 @@
 # Phase 2 — Blender models and light baking
 
 - **Date:** 2026-09-30
-- **Status:** Implemented (see "Outcome"). Implemented at the user's request without writing a plan document.
+- **Status:** Implemented (see "Outcome"). The project is complete; phase 3 was never started. Implemented at the user's request without writing a plan document.
 - **Branch:** `feat/blender-models` (merged into `feat/real-3d-table-tennis`)
 - **Previous phase:** `2026-09-29-lighting-postfx-hdri-design.md` (implemented)
 
@@ -64,8 +64,9 @@ code. Its root is at the centre of the blade and the handle points toward −Y
 
 - `tools/blender/export.py`: writes each collection to a GLB with the same
   settings (applied transforms, second UV, WebP textures).
-- `npm run assets:optimize`: meshopt compression and texture resizing with
-  `@gltf-transform/cli` (a dev dependency).
+- Compression: planned as an `npm run assets:optimize` script with
+  `@gltf-transform/cli`; not added, because Blender's exporter does meshopt
+  itself (see "Outcome").
 - Output: `web/src/assets/models/{table,paddle,arena}.glb` and
   `arena_lightmap.webp`. Imported with `?url` (hashed name, long-lived cache).
 

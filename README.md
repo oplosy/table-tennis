@@ -3,6 +3,10 @@
 3D table tennis with real physics, running in the browser. Play against the
 computer or online with a friend.
 
+> **Project status: complete.** Version 1.1.0 is the final release. No further
+> development or maintenance is planned; the repository is kept as it is. See
+> [Known limitations](#known-limitations) for what was left out on purpose.
+
 - **Real dimensions and physics:** ITTF table (2.74 × 1.525 m, net 15.25 cm),
   40 mm ball; gravity, air drag, the Magnus effect (topspin/backspin/sidespin),
   bounces with friction on the table, balls that clip the net tape and roll
@@ -74,3 +78,13 @@ web             React + three.js: 3D hall, camera, controls, HUD and menus
 ```
 
 See [architecture.md](architecture.md) for details.
+
+## Known limitations
+
+- The full graphics tier (ambient occlusion) is too heavy for some integrated
+  GPUs; the game switches it off by itself when frames get slow. It was
+  measured only on one integrated GPU, not on a discrete one.
+- Player characters with IK (the planned phase 3) were never built; only the
+  paddles are drawn.
+- The floor and table use plain materials; no texture work was done for them.
+- The repository has no `LICENSE` file, so no licence is granted by default.

@@ -188,3 +188,16 @@ strokes per point).
 - `server`: the room API, match start and action relay, disconnect/pause, input
   sanitising.
 - `web`: how often mouse strokes stay on the table against the AI.
+
+## Status and known limitations
+
+The project is complete (1.1.0 is the final release). What was left out:
+
+- Player characters with IK (phase 3 of the visual overhaul) were never started.
+- Texture work for the floor and the table was not done; they use plain
+  materials.
+- The `high` tier's ambient occlusion exceeds the frame budget on the integrated
+  GPU it was measured on, so `budget.ts` disables it automatically. A discrete
+  GPU was not measured.
+- The `low` tier's post chain costs about 2 ms/frame, above the ≲ 1 ms goal in
+  the phase 1 spec.

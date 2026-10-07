@@ -1,5 +1,8 @@
 # Changelog
 
+1.1.0 is the final release; the project is complete and no further versions
+are planned.
+
 ## 1.1.0 — 2026-09-30
 
 - Broadcast-style lighting: HDRI image-based lighting, overhead key light,

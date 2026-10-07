@@ -11,7 +11,7 @@ going through its own spec → plan → implementation cycle:
 
 1. **Phase 1 (this document):** light rig, post-processing, HDRI.
 2. Phase 2: table, paddle and hall models in Blender + light baking.
-3. Phase 3: player characters with IK.
+3. Phase 3: player characters with IK. (Never started; the project was completed without it.)
 
 Current state: the scene is entirely procedural Three.js (r179). The ambient
 light is `RoomEnvironment` (0.3), the lights are a hemisphere + key + fill + two
