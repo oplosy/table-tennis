@@ -1,155 +1,160 @@
-# Faz 1 — Işık, post-processing ve HDRI
+# Phase 1 — Lighting, post-processing and HDRI
 
-- **Tarih:** 2026-09-29
-- **Durum:** Uygulandı (bkz. "Uygulama sonucu")
-- **Dal:** `feat/visual-lighting-postfx` (`feat/real-3d-table-tennis` üzerinden)
+- **Date:** 2026-09-29
+- **Status:** Implemented (see "Outcome"). The stand-in HDRI described here was later replaced by our own hall render (phase 2).
+- **Branch:** `feat/visual-lighting-postfx` (from `feat/real-3d-table-tennis`)
 
-## Bağlam
+## Context
 
-Frontend görsel iyileştirmesi üç ayrı alt projeye bölündü; her biri kendi
-spec → plan → uygulama döngüsünden geçer:
+The visual overhaul of the frontend was split into three sub-projects, each
+going through its own spec → plan → implementation cycle:
 
-1. **Faz 1 (bu belge):** ışık düzeni, post-processing, HDRI.
-2. Faz 2: Blender'da masa, raket ve salon modelleri + ışık bake'i.
-3. Faz 3: IK'li oyuncu karakterleri.
+1. **Phase 1 (this document):** light rig, post-processing, HDRI.
+2. Phase 2: table, paddle and hall models in Blender + light baking.
+3. Phase 3: player characters with IK.
 
-Bugünkü durum: sahne tamamen prosedürel Three.js (r179). Ortam ışığı
-`RoomEnvironment` (0.3), ışıklar hemisphere + key + fill + iki spot, ACES tone
-mapping, dokular canvas'ta çiziliyor. Post-processing ve ikili asset yok.
-`low`/`high` kalite ayarı ve dokunmatik/dikey ekran desteği var.
+Current state: the scene is entirely procedural Three.js (r179). The ambient
+light is `RoomEnvironment` (0.3), the lights are a hemisphere + key + fill + two
+spots, tone mapping is ACES, and textures are drawn on canvases. There is no
+post-processing and no binary assets. A `low`/`high` quality setting and
+touch/portrait support exist.
 
-## Hedef
+## Goal
 
-- **Görünüm:** WTT yayın havası — tribünler karanlıkta, kort sahne gibi soğuk
-  beyaz üst ışıkla aydınlık, güçlü kontrast, hafif bloom ve vinyet.
-- **Performans:** masaüstünde (`high`) tam zincir; mobilde (`low` / "Fast")
-  ucuz zincir.
-- **Kapsam dışı:** modeller, bake, karakterler, WebGPU geçişi, simülasyon
-  (`packages/core`) değişiklikleri. Yalnızca sunum katmanı değişir; yerel ve
-  çevrimiçi modlar aynen çalışır.
+- **Look:** a WTT broadcast feel — dark stands, a court lit like a stage by cold
+  white overhead light, strong contrast, light bloom and a vignette.
+- **Performance:** the full chain on desktop (`high`); a cheap chain on mobile
+  (`low` / "Fast").
+- **Out of scope:** models, baking, characters, a WebGPU migration, and changes
+  to the simulation (`packages/core`). Only the presentation layer changes;
+  local and online modes work as before.
 
-## Seçilen yaklaşım
+## Chosen approach
 
-`postprocessing` (pmndrs, `^6.39`, three `>=0.168 <0.187` ile uyumlu) +
-`n8ao` (`^2`). Efektler tek bir tam ekran geçişte birleştirilir; N8AO yarım
-çözünürlükte hızlı ve düşük gürültülü AO verir.
+`postprocessing` (pmndrs, `^6.39`, compatible with three `>=0.168 <0.187`) +
+`n8ao` (`^2`). Effects are merged into a single full-screen pass; N8AO gives
+fast, low-noise AO at half resolution.
 
-Reddedilenler: three `examples/jsm` geçişleri (her efekt ayrı geçiş,
-`UnrealBloomPass` pahalı ve seçici bloom zor); `WebGPURenderer` + TSL (materyal
-katmanı göçü gerektirir, ayrı bir proje).
+Rejected: three `examples/jsm` passes (every effect is a separate pass,
+`UnrealBloomPass` is expensive and selective bloom is hard); `WebGPURenderer` +
+TSL (needs a migration of the material layer, a separate project).
 
-## Mimari
+## Architecture
 
-Yeni klasör `web/src/game/render/`:
+New folder `web/src/game/render/`:
 
-| Birim | Görev | Arayüz |
+| Unit | Job | Interface |
 |---|---|---|
-| `render/profile.ts` | Kalite → ayar tablosu (piksel oranı, gölge haritası boyutu, açık efektler, grading değerleri). Saf veri. | `renderProfile(quality: Quality): RenderProfile` |
-| `render/environment.ts` | HDRI'yi yükler (`RGBELoader` → `PMREMGenerator`; r179'da `HDRLoader` henüz yok) ve `scene.environment`'a koyar. Yüklenene kadar ve hata durumunda `RoomEnvironment` kalır. | `loadEnvironment(scene, url, baker, look?, load?): { ready: Promise<void>; dispose(): void }` — PMREM işi `pmremBaker(renderer)` arkasında, böylece WebGL'siz test edilebilir |
-| `render/postfx.ts` | `EffectComposer`'ı kurar ve sahiplenir. | `createPostFx(renderer, scene, camera, profile): PostFx` — `render(dt)`, `setSize(w, h)`, `enabled`, `dispose()` |
-| `world/arena.ts` → `createLights` | WTT düzenine göre yeniden kurulur. | `createLights(profile: RenderProfile)` (gölge haritası boyutu profilden) |
+| `render/profile.ts` | Quality → settings table (pixel ratio, shadow map size, enabled effects, grading values). Pure data. | `renderProfile(quality: Quality): RenderProfile` |
+| `render/environment.ts` | Loads the HDRI (`RGBELoader` → `PMREMGenerator`; r179 has no `HDRLoader` yet) and puts it in `scene.environment`. Until it loads, and on failure, `RoomEnvironment` stays. | `loadEnvironment(scene, url, baker, look?, load?): { ready: Promise<void>; dispose(): void }` — the PMREM work is behind `pmremBaker(renderer)` so it can be tested without WebGL |
+| `render/postfx.ts` | Builds and owns the `EffectComposer`. | `createPostFx(renderer, scene, camera, profile): PostFx` — `render(dt)`, `setSize(w, h)`, `enabled`, `dispose()` |
+| `world/arena.ts` → `createLights` | Rebuilt to the WTT layout. | `createLights(profile: RenderProfile)` (shadow map size comes from the profile) |
 
-`GameRenderer` değişiklikleri:
+Changes to `GameRenderer`:
 
 - `renderer.render(scene, camera)` → `postfx.render(dt)`.
-- `resize()` composer'ı da boyutlar; `dispose()` composer'ı ve ortam
-  yükleyicisini de bırakır.
-- Renderer: `toneMapping = NoToneMapping` (tone mapping zincire taşınır),
-  `antialias: false` (AA composer'da).
-- Renderer ayarları (piksel oranı, gölge tipi) `renderProfile`'dan okunur.
+- `resize()` sizes the composer too; `dispose()` also releases the composer and
+  the environment loader.
+- Renderer: `toneMapping = NoToneMapping` (tone mapping moves into the chain),
+  `antialias: false` (AA is in the composer).
+- Renderer settings (pixel ratio, shadow type) are read from `renderProfile`.
 
-Asset yeri: `web/src/assets/env/arena_1k.hdr` (`?url` ile içe aktarılır; böylece
-`/assets/` altında hash'li adla, kalıcı önbellek başlığıyla servis edilir)
-— (Poly Haven `dancing_hall`, 1k, 1.7 MB) ve kaynak + CC0 lisansını
-yazan `README.md` aynı klasörde. Faz 2'de Blender'dan render edilen kendi
-salon env map'i aynı klasöre gelir ve `loadEnvironment` URL'si değişir.
+Asset location: `web/src/assets/env/arena_1k.hdr` (imported with `?url`, so it
+is served under `/assets/` with a hashed name and a long-lived cache header)
+— (Poly Haven `dancing_hall`, 1k, 1.7 MB) with a `README.md` in the same folder
+stating the source and the CC0 licence. In phase 2, our own hall environment
+map rendered in Blender comes to the same folder and the `loadEnvironment` URL
+changes. (Done: see the phase 2 spec.)
 
-## Işık düzeni
+## Light rig
 
-| Işık | Ayar |
+| Light | Setting |
 |---|---|
-| `scene.environment` | Poly Haven `dancing_hall` (karanlık tavan, nötr LED ızgaraları; `circus_arena` kırmızı zemin yansıması yüzünden elendi), `environmentIntensity` ≈ 0.5, parlak bölge tepeye gelecek şekilde döndürülür. |
+| `scene.environment` | Poly Haven `dancing_hall` (dark ceiling, neutral LED grids; `circus_arena` was rejected because of its red floor reflection), `environmentIntensity` ≈ 0.5, rotated so the bright area is overhead. |
 | Hemisphere | 0.55 → ≈ 0.12. |
-| Key (tek gölge atan) | Masanın neredeyse tam üstünde, hafif ofsetli directional. Soğuk beyaz `#f3f6ff`. Gölge haritası 2048 (`high`) / 1024 (`low`). Kısa, keskin top/raket gölgesi derinlik algısı için korunur. |
-| Kort yıkaması | 4 gölgesiz spot; kortta ışık havuzu, bariyerlere doğru sönümlenir. |
-| Rim | Her iki uçta arkadan zayıf soğuk ışık; raket ve topu karanlık fondan ayırır. |
-| Tavan ışık çubukları | Emissive, yoğunluk > 1. Bloom eşiğini yalnızca bunlar ve vuruş parlaması geçer. |
+| Key (the only shadow caster) | A directional light almost directly above the table, slightly offset. Cold white `#f3f6ff`. Shadow map 2048 (`high`) / 1024 (`low`). A short, sharp ball/paddle shadow is kept for depth perception. |
+| Court wash | 4 shadowless spots; a pool of light on the court that falls off toward the barriers. |
+| Rim | A weak cold light from behind at both ends; separates the paddle and ball from the dark background. |
+| Ceiling light bars | Emissive, intensity > 1. Only these and the hit flash pass the bloom threshold. |
 
-Tüm değerler başlangıç noktasıdır; görsel doğrulama sırasında ayarlanır.
+All values are starting points; they are tuned during visual verification.
 
-## Post zinciri
+## Post chain
 
 | | `high` | `low` |
 |---|---|---|
-| AA | Composer MSAA ×4 | FXAA (ayrı, son `EffectPass`) |
-| AO | N8AO, yarım çözünürlük | yok |
-| Bloom | Mipmap bloom, eşik ≈ 0.9, yoğunluk ≈ 0.7 | Aynı, daha az mip seviyesi |
+| AA | Composer MSAA ×4 | FXAA (a separate, last `EffectPass`) |
+| AO | N8AO, half resolution | none |
+| Bloom | Mipmap bloom, threshold ≈ 0.9, intensity ≈ 0.7 | Same, fewer mip levels |
 | Tone mapping | AgX | AgX |
-| Grading | Kontrast +, doygunluk + (AgX düzlüğünü telafi), vinyet ≈ 0.35 | Aynı |
-| Piksel oranı | ≤ 2 | ≤ 1.25 |
+| Grading | Contrast +, saturation + (compensating for AgX's flatness), vignette ≈ 0.35 | Same |
+| Pixel ratio | ≤ 2 | ≤ 1.25 |
 
-Bloom, tone mapping ve grading tek bir `EffectPass`'te birleşir. FXAA komşu
-pikselleri örneklediği için bitmiş görüntü üzerinde ayrı bir geçişte çalışır. Grading LUT dosyası
-değil, parametredir.
+Bloom, tone mapping and grading are merged into one `EffectPass`. FXAA samples
+neighbouring pixels, so it runs in a separate pass on the finished image.
+Grading is parameters, not a LUT file.
 
-**Bilinen risk:** N8AO ile composer MSAA birlikte sorun çıkarırsa `high`,
-SMAA + N8AO'ya düşer. Uygulamanın ilk adımında doğrulanır.
+**Known risk:** if N8AO and composer MSAA cause problems together, `high` falls
+back to SMAA + N8AO. This is verified in the first step of the implementation.
 
-## Hata yönetimi
+## Error handling
 
-- HDRI yüklenemezse: `console.warn`, `RoomEnvironment` kalır, oyun beklemez.
-- Yükleme sürerken `dispose()` çağrılırsa (kalite değişimi canvas'ı yeniden
-  kurar) gelen sonuç atılır ve doku bırakılır.
-- WebGL2 dalı yok: three r163'ten beri `WebGLRenderer` yalnızca WebGL2 ile
-  çalışır, WebGL2'siz tarayıcıda renderer zaten kurulamaz (mevcut davranış).
-- Geliştirme yardımı: `rally.renderer.postfx.enabled = false` doğrudan
-  renderer ile çizer (önce/sonra ve performans karşılaştırması için).
+- If the HDRI fails to load: `console.warn`, `RoomEnvironment` stays, the game
+  does not wait.
+- If `dispose()` is called while loading (a quality change rebuilds the
+  canvas), the incoming result is discarded and the texture is released.
+- No WebGL2 branch: since three r163, `WebGLRenderer` works only with WebGL2, so
+  in a browser without WebGL2 the renderer cannot be created anyway (existing
+  behaviour).
+- Development aid: `rally.renderer.postfx.enabled = false` draws directly with
+  the renderer (for before/after and performance comparisons).
 
-## Test ve doğrulama
+## Tests and verification
 
-Birim testleri (vitest, `web/`):
+Unit tests (vitest, `web/`):
 
-- `profile.test.ts`: `high`'da AO + MSAA var, `low`'da yok; piksel oranı
-  sınırları; gölge haritası boyutları; iki katmanın aynı grading'i paylaşması.
-- `environment.test.ts`: sahte yükleyiciyle hata durumunda fallback'in
-  kaldığı; dispose sonrası gelen sonucun atıldığı.
-- `postfx` jsdom'da çizilemez; tarayıcı önizlemesinde smoke kontrolü yapılır.
+- `profile.test.ts`: `high` has AO + MSAA and `low` does not; pixel ratio caps;
+  shadow map sizes; both tiers share the same grading.
+- `environment.test.ts`: with a fake loader, the fallback stays on failure; a
+  result arriving after dispose is discarded.
+- `postfx` cannot draw in jsdom; a smoke check is done in the browser preview.
 
-Tarayıcı önizlemesi:
+Browser preview:
 
-- Aynı `simulate()` karesinden önce/sonra ekran görüntüleri: demo yörüngesi ve
-  oyuncu kamerası, yatay ve dikey.
-- `renderer.info` + 300 karelik süre ölçümü: `high` ve `low`, postfx kapalıyken
-  ölçülen değerle karşılaştırılır.
-- Konsolda shader/WebGL uyarısı olmamalı.
+- Before/after screenshots from the same `simulate()` frame: the demo trajectory
+  and the player camera, landscape and portrait.
+- `renderer.info` + a 300-frame timing measurement: `high` and `low`, compared
+  with the value measured with postfx off.
+- There must be no shader/WebGL warnings in the console.
 
-Kapılar: `npm test`, `npm run typecheck`, `npm run build` yeşil.
+Gates: `npm test`, `npm run typecheck`, `npm run build` green.
 
-## Başarı ölçütleri
+## Success criteria
 
-1. `high`: masa/file altında temas gölgeleri, lambalarda bloom, karanlık
-   tribün – aydınlık kort ayrımı ekran görüntülerinde net.
-2. `low`: zincirin ek maliyeti postfx kapalıya göre ≲ 1 ms/kare.
-3. Top okunabilirliği bugünkünden kötü değil, tercihen daha iyi.
-4. Tüm kapılar yeşil.
+1. `high`: contact shadows under the table/net, bloom on the lamps, and a clear
+   dark-stands / bright-court separation in the screenshots.
+2. `low`: the chain's added cost is ≲ 1 ms/frame compared with postfx off.
+3. Ball readability is no worse than today, preferably better.
+4. All gates green.
 
-## Dokümantasyon
+## Documentation
 
-`architecture.md` → İstemci bölümündeki "ikili asset yoktur" cümlesi ve görsel
-dünya açıklaması güncellenir; `render/` klasörü eklenir. `CHANGELOG.md`'ye
-kayıt düşülür.
+In `architecture.md` → Client, the sentence "there are no binary assets" and the
+description of the visual world are updated; the `render/` folder is added. An
+entry is made in `CHANGELOG.md`.
 
-## Uygulama sonucu (2026-09-30)
+## Outcome (2026-09-30)
 
-- Grading, kütüphanenin kontrast/doygunluk efektleri yerine sonucu sıfırda
-  sıkıştıran tek bir `GradingEffect` ile yapılır (negatif değerler renk uzayı
-  dönüşümünde NaN üretiyordu).
-- Ayarlanan değerler: key 1.7, kort yıkaması 9, rim 0.35, hemisphere 0.12,
-  ortam 0.15 (≈ 0.5 başlangıç değeri tribünleri fazla aydınlatıyordu).
-- N8AO + composer MSAA ×4 birlikte çalışıyor; SMAA yedeğine gerek kalmadı.
-- İlk açılışta dokunmatik cihazlar `low`, diğerleri `high` ile başlar.
-- Ölçüm (Intel UHD tümleşik GPU, 1280×720): `high` +12 ms/kare (N8AO ≈ 8.5 ms),
-  `low` +2.1 ms/kare. Başarı ölçütü 2 (`low` ≲ 1 ms) **karşılanmadı**; `high`
-  bu GPU'da 60 fps'in altında kalıyor. Ayrık GPU'da ölçülmedi.
-- Bunun için `high`, ortalama kare süresi 18 ms'yi aşarsa AO'yu oturum boyunca
-  kapatır (aynı GPU'da 23.1 → 15.5 ms/kare, ~3.5 sn sonra).
+- Grading is done with a single `GradingEffect` that clamps the result at zero,
+  instead of the library's contrast/saturation effects (negative values
+  produced NaN in the colour-space conversion).
+- Tuned values: key 1.7, court wash 9, rim 0.35, hemisphere 0.12, environment
+  0.15 (the initial ≈ 0.5 lit the stands too much).
+- N8AO + composer MSAA ×4 work together; the SMAA fallback was not needed.
+- On first launch, touch devices start on `low` and the rest on `high`.
+- Measurement (Intel UHD integrated GPU, 1280×720): `high` +12 ms/frame (N8AO ≈
+  8.5 ms), `low` +2.1 ms/frame. Success criterion 2 (`low` ≲ 1 ms) was **not
+  met**; `high` stays below 60 fps on this GPU. Not measured on a discrete GPU.
+- For this reason, `high` turns AO off for the rest of the session if the
+  average frame time exceeds 18 ms (on the same GPU 23.1 → 15.5 ms/frame, after
+  ~3.5 s).

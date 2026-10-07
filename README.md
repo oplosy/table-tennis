@@ -21,7 +21,7 @@ computer or online with a friend.
 
 ## Setup
 
-Requires Node.js 20+.
+Requires Node.js 22 (see `.nvmrc`).
 
 ```powershell
 npm install
@@ -39,7 +39,7 @@ without the server; online play needs it.
 | `npm run dev` | Server + client in development mode |
 | `npm test` | Core, server and client tests |
 | `npm run typecheck` | TypeScript check across all packages |
-| `npm run build` | Produces `web/dist` and `server/dist/server.js` |
+| `npm run build` | Produces `web/dist` and `server/dist/server.mjs` |
 | `npm start` | Starts the built server; also serves `web/dist` |
 | `npm run bench -- hard medium 20` | Balance measurement with AI matches |
 
