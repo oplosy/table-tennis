@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.1.0 — 2026-09-30
 
 - Broadcast-style lighting: HDRI image-based lighting, overhead key light,
   court wash and rim lights.

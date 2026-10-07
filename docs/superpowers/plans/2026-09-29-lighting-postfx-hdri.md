@@ -2,6 +2,8 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
+> **Status: implemented (2026-09-30).** This plan is kept as a historical record, so its checkboxes are not ticked. Outcomes and deviations are in the spec's "Outcome" section. The Poly Haven HDRI and the `web/public/env/` location below were later replaced by our own hall render in `web/src/assets/env/` (see the phase 2 spec).
+
 **Goal:** Give the table tennis client a WTT-broadcast look — HDRI image-based lighting, a rebuilt light rig and a pmndrs post-processing chain — with a full chain on `high` and a cheap one on `low`.
 
 **Architecture:** A new `web/src/game/render/` folder holds three focused units: `profile.ts` (quality → render settings, pure data), `environment.ts` (HDRI → PMREM with a `RoomEnvironment` fallback and a dispose-safe async load) and `postfx.ts` (owns the `EffectComposer`). `GameRenderer` consumes them; `world/arena.ts` gets the new light rig. Nothing in `packages/core` or `server/` changes.
@@ -19,7 +21,7 @@
 - HDRI: Poly Haven `dancing_hall`, 1k `.hdr` (1 725 266 bytes, md5 `2d8c98f2e75647367251284d9692a91a`), CC0, stored at `web/public/env/arena_1k.hdr` with its source in `web/public/env/README.md`.
 - Downloading the HDRI requires the user's explicit yes in chat (file name, source, size) before running the download command.
 - Branch: `feat/visual-lighting-postfx`. Conventional-commit subjects ≤ 72 chars, one concern per commit, every commit message ends with `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`.
-- Code and code comments in English; repo docs (`architecture.md`, specs) in Turkish; `CHANGELOG.md` in English (matches existing file).
+- Code, code comments and repo docs (`architecture.md`, specs, `CHANGELOG.md`) in English.
 - Gates before every commit that touches code: `npm test`, `npm run typecheck` (both from repo root). Before the final commit also `npm run build`.
 
 ## Review Focus
@@ -826,7 +828,7 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 ### Task 5: Verification and docs
 
 **Files:**
-- Modify: `architecture.md` (İstemci bölümü)
+- Modify: `architecture.md` (Client section)
 - Modify: `CHANGELOG.md`
 
 **Interfaces:**
@@ -854,19 +856,20 @@ Toggle Graphics High → Fast → High → Fast within ~2 s (HDRI still loading 
 
 - [ ] **Step 5: Update docs**
 
-`architecture.md`, İstemci bölümünde "Görsel dünya" maddesini şununla değiştir:
+In `architecture.md`, Client section, replace the "Visual world" bullet with:
 
 ```md
-- **Görsel dünya (`game/world/`):** salon, bariyerler, tribünler, WTT yayın
-  tarzı ışık düzeni (tepeden tek gölgeli key, kort yıkaması, rim), regülasyon
-  masa ve file, prosedürel raketler, top izi ve temas gölgesi. Dokular çalışma
-  anında canvas'a çizilir; tek ikili asset `public/env/` altındaki HDRI'dir.
-- **Render (`game/render/`):** `profile.ts` kalite katmanını (piksel oranı,
-  gölge, MSAA/FXAA, AO, bloom, grading) tanımlar. `environment.ts` HDRI'yi
-  PMREM'e çevirir; yüklenene kadar ve hata durumunda `RoomEnvironment` kullanır.
-  `postfx.ts` pmndrs `postprocessing` zinciridir: N8AO (yalnız High) → bloom +
-  AgX + grading tek geçişte → FXAA (yalnız Fast). Geliştirmede
-  `rally.renderer.postfx.enabled = false` zinciri kapatır.
+- **Visual world (`game/world/`):** the hall, barriers, stands, a WTT
+  broadcast-style light rig (a single shadow-casting overhead key, a court
+  wash, rims), a regulation table and net, procedural paddles, ball trail and
+  contact shadow. Textures are drawn on canvases at run time; the only binary
+  asset is the HDRI under `public/env/`.
+- **Rendering (`game/render/`):** `profile.ts` defines the quality tier (pixel
+  ratio, shadows, MSAA/FXAA, AO, bloom, grading). `environment.ts` turns the
+  HDRI into a PMREM; until it loads, and on failure, it uses `RoomEnvironment`.
+  `postfx.ts` is the pmndrs `postprocessing` chain: N8AO (High only) → bloom +
+  AgX + grading in a single pass → FXAA (Fast only). During development,
+  `rally.renderer.postfx.enabled = false` turns the chain off.
 ```
 
 `CHANGELOG.md`, add at the top below the title:
